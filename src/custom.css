@@ -15,7 +15,7 @@
   align-items: center;
   justify-content: space-between;
   height: var(--navbar-h);
-  padding: 16px 54px;
+  padding: 8px 54px;
 }
 
 /* ── Logo ── */
@@ -42,18 +42,21 @@
 
 .navbar__nav a {
   font-family: 'Baloo 2', sans-serif;
-  font-size: 15.75px;
+  font-size: 18px;
   font-weight: 600;
-  line-height: 22.5px;
+  line-height: 26px;
   color: var(--text-medium);
-  padding: 6px 14px;
+  padding: 6px 16px;
   border-radius: var(--radius-sm);
-  transition: color 0.2s;
+  transition: color 0.2s, background 0.2s, transform 0.2s;
   white-space: nowrap;
 }
 
 .navbar__nav a:hover {
   color: var(--text-dark);
+  background: rgba(93, 174, 97, 0.1);
+  border-radius: 12px;
+  transform: translateY(-1px);
 }
 
 .navbar__nav a.active {
@@ -143,11 +146,12 @@
   height: 580px;
   overflow: hidden;
   background: #fffdf7;
+  margin: 0 54px;
+  border-radius: 32px;
 }
 
 .hero__inner {
   display: grid;
-  /* 668px left column : 772px right column — matches design at 1440px */
   grid-template-columns: 46.39% 53.61%;
   height: 100%;
 }
@@ -398,7 +402,7 @@
   background: var(--white);
   border: 2.25px solid #1a1a1a;
   border-radius: 27px;
-  padding: 18px 18px 40.5px;
+  padding: 18px 18px 14px;
   width: 150.75px;
   height: 207px;
   display: flex;
@@ -445,10 +449,14 @@
 }
 
 .category-card__desc {
-  font-size: 11px;
-  color: var(--text-light);
-  font-weight: 500;
-  line-height: 1.4;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 14.06px;
+  letter-spacing: 0px;
+  text-align: center;
+  color: #6b7280;
+  width: 100%;
 }
 
 /* ─── How It Works ───────────────────────────────────────────── */
@@ -457,10 +465,14 @@
 }
 
 .how-it-works__inner {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 48px;
+  display: flex;
   align-items: center;
+  gap: 32px;
+}
+
+.how-it-works__left {
+  flex: 1;
+  min-width: 0;
 }
 
 .how-it-works__title {
@@ -504,7 +516,7 @@
 .how-it-works__step-badge {
   position: absolute;
   top: -28px;
-  right: 72px;
+  right: 55px;
   width: 36px;
   height: 36px;
   background: #5dae61;
@@ -549,89 +561,107 @@
   padding: 0 4px;
 }
 
-.how-it-works__tagline {
-  margin-top: 36px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-medium);
-}
-
-.how-it-works__tagline-icon {
-  color: #e88;
-  font-size: 16px;
-}
 
 .how-it-works__pricing {
-  background: var(--green-dark);
-  border-radius: var(--radius-lg);
-  padding: 40px 36px;
-  color: var(--white);
+  background: #f4f9f4;
+  border-radius: 27px;
+  padding: 20px 44px;
+  width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+  box-sizing: border-box;
   position: relative;
-  overflow: hidden;
+  margin: 0 48px;
 }
 
-.how-it-works__pricing::before {
-  content: '';
+.pricing__header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.pricing__price-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pricing__coin-img {
+  width: 120px;
+  height: 100px;
+  object-fit: contain;
   position: absolute;
-  top: -60px;
-  right: -60px;
-  width: 200px;
-  height: 200px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 50%;
+  top: 20px;
+  right: 24px;
+  transform: rotate(20deg);
+}
+
+.pricing__header-text {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
 }
 
 .pricing__title {
-  font-size: 28px;
-  font-weight: 900;
-  color: var(--white);
-  line-height: 1.2;
-  margin-bottom: 8px;
+  font-family: 'Caveat', cursive;
+  font-weight: 700;
+  font-size: 33.75px;
+  line-height: 40.5px;
+  letter-spacing: 0px;
+  color: var(--text-dark);
+  white-space: nowrap;
 }
 
 .pricing__price {
-  font-family: 'Fredoka One', cursive;
+  font-family: 'Caveat Brush', cursive;
+  font-weight: 400;
   font-size: 64px;
-  color: var(--white);
-  line-height: 1;
+  line-height: 54px;
+  letter-spacing: 0px;
+  color: #5dae61;
+  width: 51px;
+  height: 54px;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .pricing__price-sub {
-  font-size: 20px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
+  font-family: 'Caveat', cursive;
+  font-weight: 700;
+  font-size: 33.75px;
+  line-height: 40.5px;
+  letter-spacing: 0px;
+  color: var(--text-dark);
 }
 
 .pricing__features {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px 16px;
-  margin: 28px 0 32px;
+  gap: 8px 24px;
 }
 
 .pricing__feature {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 500;
   font-size: 14px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  line-height: 22.5px;
+  letter-spacing: 0px;
+  color: #1a1a1a;
 }
 
 .pricing__check {
-  width: 18px;
-  height: 18px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
-  font-size: 10px;
-  color: #7ef5a8;
+  font-size: 14px;
+  color: #5dae61;
+  font-weight: 700;
 }
 
 .pricing__cta {
@@ -640,36 +670,23 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 14px 24px;
-  background: var(--white);
-  color: var(--green-dark);
-  border: none;
-  border-radius: var(--radius-full);
-  font-size: 16px;
-  font-weight: 800;
-  transition: background 0.2s;
+  padding: 10px 24px;
+  background: #5dae61;
+  color: var(--white);
+  border: 2px solid #1a1a1a;
+  border-radius: 14px;
+  box-shadow: 3px 3px 0px 0px #1a1a1a;
+  font-size: 15px;
+  font-weight: 700;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 .pricing__cta:hover {
-  background: #e8f5ee;
+  background: #4a9a4e;
+  box-shadow: 1px 1px 0px 0px #1a1a1a;
+  transform: translate(2px, 2px);
 }
 
-.pricing__coin {
-  position: absolute;
-  top: 32px;
-  right: 32px;
-  width: 56px;
-  height: 56px;
-  background: #f5a623;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Fredoka One', cursive;
-  font-size: 24px;
-  color: var(--white);
-  box-shadow: 0 2px 8px rgba(245, 166, 35, 0.4);
-}
 
 /* ─── Footer ─────────────────────────────────────────────────── */
 .footer {

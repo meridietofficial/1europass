@@ -57,18 +57,18 @@ export default function HowItWorks() {
             ))}
           </div>
 
-          <div className="how-it-works__tagline">
-            <span className="how-it-works__tagline-icon">♡</span>
-            Made for students. Trusted by thousands.
-          </div>
         </div>
 
         <div className="how-it-works__pricing">
-          <div className="pricing__coin">1</div>
-          <div className="pricing__title">All this for</div>
-          <div>
-            <span className="pricing__price">€1</span>
-            <span className="pricing__price-sub"> /month</span>
+          <img src="/coin.png" alt="1 Euro coin" className="pricing__coin-img" />
+          <div className="pricing__header">
+            <div className="pricing__header-text">
+              <div className="pricing__title">All this for</div>
+              <div className="pricing__price-row">
+                <span className="pricing__price">€1</span>
+                <span className="pricing__price-sub"> /month</span>
+              </div>
+            </div>
           </div>
 
           <div className="pricing__features">
