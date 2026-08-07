@@ -127,6 +127,12 @@ ul {
   color: var(--text-dark);
 }
 
+/* All sections inside .content-card must use this on their inner wrapper
+   to align with the 54px (section) + 48px (inner) = 102px grid */
+.section-inner {
+  padding: 0 48px;
+}
+
 /* ─── Responsive breakpoints ─────────────────────────────────── */
 @media (max-width: 1024px) {
   .container {

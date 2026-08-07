@@ -47,16 +47,15 @@
   line-height: 26px;
   color: var(--text-medium);
   padding: 6px 16px;
-  border-radius: var(--radius-sm);
+  border-radius: 12px;
   transition: color 0.2s, background 0.2s, transform 0.2s;
   white-space: nowrap;
+  position: relative;
 }
 
 .navbar__nav a:hover {
   color: var(--text-dark);
   background: rgba(93, 174, 97, 0.1);
-  border-radius: 12px;
-  transform: translateY(-1px);
 }
 
 .navbar__nav a.active {
@@ -93,9 +92,11 @@
   padding: 9px 27px;
   border-radius: 18px;
   border: 2.25px solid #1a1a1a;
-  font-family: 'Baloo 2', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
+  font-family: 'Caveat Brush', cursive;
+  font-size: 20.25px;
+  font-weight: 400;
+  line-height: 31.5px;
+  letter-spacing: 0px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -251,8 +252,11 @@
   border: 2px solid #1a1a1a;
   border-radius: 16px;
   box-shadow: 4px 4px 0px 0px #1a1a1a;
-  font-size: 15px;
-  font-weight: 700;
+  font-family: 'Caveat Brush', cursive;
+  font-size: 20.25px;
+  font-weight: 400;
+  line-height: 31.5px;
+  letter-spacing: 0px;
   transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
@@ -274,8 +278,11 @@
   border: 2px solid #1a1a1a;
   border-radius: 16px;
   box-shadow: 4px 4px 0px 0px #1a1a1a;
-  font-size: 15px;
-  font-weight: 700;
+  font-family: 'Caveat Brush', cursive;
+  font-size: 20.25px;
+  font-weight: 400;
+  line-height: 31.5px;
+  letter-spacing: 0px;
   white-space: nowrap;
   transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
 }
@@ -574,6 +581,7 @@
   box-sizing: border-box;
   position: relative;
   margin: 0 48px;
+  overflow: visible;
 }
 
 .pricing__header {
@@ -594,7 +602,7 @@
   height: 100px;
   object-fit: contain;
   position: absolute;
-  top: 20px;
+  top: -15px;
   right: 24px;
   transform: rotate(20deg);
 }
@@ -657,11 +665,23 @@
   color: #1a1a1a;
 }
 
+.pricing__arrow-doodle {
+  width: 100px;
+  height: 120px;
+  object-fit: contain;
+  position: absolute;
+  right: 0px;
+  top: 65%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 .pricing__check {
   flex-shrink: 0;
-  font-size: 14px;
-  color: #5dae61;
-  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  display: block;
 }
 
 .pricing__cta {
@@ -669,15 +689,18 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: 100%;
+  width: 85%;
   padding: 10px 24px;
   background: #5dae61;
   color: var(--white);
   border: 2px solid #1a1a1a;
   border-radius: 14px;
   box-shadow: 3px 3px 0px 0px #1a1a1a;
-  font-size: 15px;
-  font-weight: 700;
+  font-family: 'Caveat Brush', cursive;
+  font-size: 20.25px;
+  font-weight: 400;
+  line-height: 31.5px;
+  letter-spacing: 0px;
   transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
@@ -687,6 +710,293 @@
   transform: translate(2px, 2px);
 }
 
+
+/* ─── Reach Section ──────────────────────────────────────────── */
+.reach {
+  padding: 0 54px 64px;
+}
+
+.reach__inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+.reach__left {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding-left: 48px;
+}
+
+.reach__map {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Left */
+.reach__heading {
+  font-family: 'Caveat Brush', cursive;
+  font-weight: 400;
+  font-size: 42px;
+  line-height: 1.2;
+  color: var(--text-dark);
+  margin-bottom: 24px;
+}
+
+.reach__heading-accent {
+  font-family: 'Caveat', cursive;
+  font-weight: 700;
+  color: #5dae61;
+  font-style: italic;
+}
+
+.reach__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 32px;
+}
+
+.reach__list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 22.5px;
+  letter-spacing: 0px;
+  color: #1a1a1a;
+  width: 275px;
+}
+
+.reach__list li::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  background-image: url('/cil_check.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.reach__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 32px;
+  width: fit-content;
+  background: #5dae61;
+  color: var(--white);
+  border: 2.25px solid #1a1a1a;
+  border-radius: 16px;
+  box-shadow: 4px 4px 0px 0px #1a1a1a;
+  font-family: 'Caveat Brush', cursive;
+  font-size: 20.25px;
+  font-weight: 400;
+  line-height: 31.5px;
+  letter-spacing: 0px;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.reach__cta:hover {
+  background: #4a9a4e;
+  box-shadow: 2px 2px 0px 0px #1a1a1a;
+  transform: translate(2px, 2px);
+}
+
+/* Middle — Map */
+.reach__map-img {
+  width: 100%;
+  max-width: 750px;
+  object-fit: contain;
+}
+
+.reach__map-center {
+  position: absolute;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.reach__map-euro {
+  width: 54px;
+  height: 54px;
+  background: #5dae61;
+  border: 2.25px solid #1a1a1a;
+  border-radius: 50%;
+  font-family: 'Caveat Brush', cursive;
+  font-size: 22px;
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reach__map-text {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--text-dark);
+  text-align: center;
+}
+
+.reach__map-accent {
+  color: #5dae61;
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Right — Stats card */
+.reach__card {
+  background: var(--white);
+  border: 2.25px solid #1a1a1a;
+  border-radius: 27px;
+  padding: 28px;
+  position: relative;
+  width: 310px;
+  height: 360px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  overflow: visible;
+}
+
+.reach__card-star {
+  position: absolute;
+  top: -14px;
+  right: 20px;
+  width: 28px;
+  height: 28px;
+  transform: rotate(30deg);
+}
+
+.reach__card-doodle {
+  position: absolute;
+  top: -40px;
+  right: -85px;
+  left: auto;
+  transform: none;
+  width: 120px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes blink {
+  0%, 100% { border-color: transparent; }
+  50% { border-color: var(--text-dark); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reach__card-title {
+  font-family: 'Caveat Brush', cursive;
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1.25;
+  color: var(--text-dark);
+  display: flex;
+  flex-direction: column;
+}
+
+.reach__card-title-l1 {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  border-right: 2px solid var(--text-dark);
+}
+
+.reach__card-title-l2 {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  border-right: 2px solid transparent;
+}
+
+.reach__stat {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  opacity: 0;
+}
+
+/* Animations fire only when card is in view */
+.reach__card.is-visible .reach__card-title-l1 {
+  animation: typewriter 0.6s steps(10) 0.2s forwards,
+             blink 0.5s step-end 0.2s 2;
+}
+
+.reach__card.is-visible .reach__card-title-l2 {
+  animation: typewriter 1s steps(20) 1s forwards,
+             blink 0.5s step-end 1s 3;
+}
+
+.reach__card.is-visible .reach__stat { animation: fadeInUp 0.4s ease forwards; }
+.reach__card.is-visible .reach__stat:nth-child(1) { animation-delay: 2.2s; }
+.reach__card.is-visible .reach__stat:nth-child(2) { animation-delay: 2.7s; }
+.reach__card.is-visible .reach__stat:nth-child(3) { animation-delay: 3.2s; }
+
+.reach__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 29px;
+}
+
+
+.reach__stat-icon {
+  width: 38px;
+  height: 38px;
+  background: #f4f9f4;
+  border: 1.5px solid #1a1a1a;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #5dae61;
+  flex-shrink: 0;
+}
+
+.reach__stat-name {
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-dark);
+  line-height: 1.3;
+}
+
+.reach__stat-desc {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-light);
+  line-height: 1.4;
+}
 
 /* ─── Footer ─────────────────────────────────────────────────── */
 .footer {

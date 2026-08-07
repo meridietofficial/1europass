@@ -71,10 +71,11 @@ export default function HowItWorks() {
             </div>
           </div>
 
+          <img src="/arrow-doodle.svg" alt="" className="pricing__arrow-doodle" />
           <div className="pricing__features">
             {FEATURES.map((f) => (
               <div key={f} className="pricing__feature">
-                <div className="pricing__check">✓</div>
+                <img src="/cil_check.png" alt="✓" className="pricing__check" />
                 {f}
               </div>
             ))}
