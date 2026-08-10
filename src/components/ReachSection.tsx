@@ -55,7 +55,7 @@ export default function ReachSection() {
           <div className="reach__stats">
             <div className="reach__stat">
               <div className="reach__stat-icon">
-                <i className="fas fa-house" />
+                <img src="/stat-listing.png" alt="Listing" className="reach__stat-icon-img" />
               </div>
               <div>
                 <div className="reach__stat-name">1 Listing</div>
@@ -64,7 +64,7 @@ export default function ReachSection() {
             </div>
             <div className="reach__stat">
               <div className="reach__stat-icon">
-                <i className="fas fa-user-group" />
+                <img src="/stat-contacts.png" alt="Contacts" className="reach__stat-icon-img" />
               </div>
               <div>
                 <div className="reach__stat-name">5 Contacts</div>
@@ -73,7 +73,7 @@ export default function ReachSection() {
             </div>
             <div className="reach__stat">
               <div className="reach__stat-icon">
-                <i className="fas fa-eye" />
+                <img src="/stat-views.png" alt="Views" className="reach__stat-icon-img" />
               </div>
               <div>
                 <div className="reach__stat-name">1 Million+</div>
