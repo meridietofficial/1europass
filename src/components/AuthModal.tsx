@@ -50,10 +50,12 @@ export default function AuthModal({ initialMode, onClose }: Props) {
 
   return (
     <div className={`auth-overlay${isClosing ? ' is-closing' : ''}`} onClick={close}>
-      <div className={`auth-modal${isClosing ? ' is-closing' : ''}`} onClick={(e) => e.stopPropagation()}>
+      <div className={`auth-modal-wrap${mode === 'register' ? ' auth-modal-wrap--wide' : ''}`} onClick={(e) => e.stopPropagation()}>
 
-        {/* Close */}
+        {/* Close — sits on the corner of the wrap, outside the modal */}
         <button className="auth-modal__close" onClick={close} type="button">✕</button>
+
+        <div className={`auth-modal${isClosing ? ' is-closing' : ''}`}>
 
         {/* Brand */}
         <div className="auth-modal__brand">
@@ -122,42 +124,45 @@ export default function AuthModal({ initialMode, onClose }: Props) {
 
           {/* ── REGISTER ── */}
           {mode === 'register' && (
-            <form className="auth-form" onSubmit={handleSubmit}>
-              <div className="auth-form__group">
-                <label className="auth-form__label">Full Name</label>
-                <input className="auth-form__input" type="text" placeholder="John Doe" required />
-              </div>
+            <form className="auth-form auth-form--register" onSubmit={handleSubmit}>
 
-              <div className="auth-form__group">
-                <label className="auth-form__label">Email</label>
-                <input className="auth-form__input" type="email" placeholder="you@email.com" required />
-              </div>
-
-              <div className="auth-form__group">
-                <label className="auth-form__label">Phone Number</label>
-                <div className="auth-form__phone">
-                  <PhoneDialDropdown value={dialCode} onChange={setDialCode} />
-                  <input className="auth-form__input auth-form__phone-num" type="tel" placeholder="712 345 678" required />
+              <div className="auth-form__row">
+                <div className="auth-form__group">
+                  <label className="auth-form__label">Full Name</label>
+                  <input className="auth-form__input" type="text" placeholder="John Doe" required />
+                </div>
+                <div className="auth-form__group">
+                  <label className="auth-form__label">Email</label>
+                  <input className="auth-form__input" type="email" placeholder="you@email.com" required />
                 </div>
               </div>
 
-              <div className="auth-form__group">
-                <label className="auth-form__label">Password</label>
-                <div className="auth-form__input-wrap">
-                  <input
-                    className="auth-form__input"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Min. 8 characters"
-                    required
-                    minLength={8}
-                  />
-                  <button
-                    type="button"
-                    className="auth-form__eye"
-                    onClick={() => setShowPassword((p) => !p)}
-                  >
-                    {showPassword ? '🙈' : '👁️'}
-                  </button>
+              <div className="auth-form__row">
+                <div className="auth-form__group">
+                  <label className="auth-form__label">Phone Number</label>
+                  <div className="auth-form__phone">
+                    <PhoneDialDropdown value={dialCode} onChange={setDialCode} />
+                    <input className="auth-form__input auth-form__phone-num" type="tel" placeholder="712 345 678" required />
+                  </div>
+                </div>
+                <div className="auth-form__group">
+                  <label className="auth-form__label">Password</label>
+                  <div className="auth-form__input-wrap">
+                    <input
+                      className="auth-form__input"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Min. 8 characters"
+                      required
+                      minLength={8}
+                    />
+                    <button
+                      type="button"
+                      className="auth-form__eye"
+                      onClick={() => setShowPassword((p) => !p)}
+                    >
+                      {showPassword ? '🙈' : '👁️'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -169,7 +174,6 @@ export default function AuthModal({ initialMode, onClose }: Props) {
                     onChange={(code) => { setCountryCode(code); setRegion('') }}
                   />
                 </div>
-
                 <div className="auth-form__group">
                   <label className="auth-form__label">Region / City</label>
                   <RegionDropdown
@@ -200,7 +204,8 @@ export default function AuthModal({ initialMode, onClose }: Props) {
 
         </div>
 
-      </div>
+        </div>{/* end auth-modal */}
+      </div>{/* end auth-modal-wrap */}
     </div>
   )
 }

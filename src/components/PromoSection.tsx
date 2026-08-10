@@ -30,7 +30,7 @@ export default function PromoSection() {
             {BIZ_FEATURES.map((f) => (
               <div key={f.img} className="promo__biz-feature">
                 <img src={f.img} alt="" className="promo__biz-icon" />
-                <span>
+                <span className="promo__biz-feature-text">
                   {f.text.split('\n').map((line, i, arr) => (
                     <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
                   ))}

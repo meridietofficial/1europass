@@ -57,7 +57,10 @@ export default function Footer() {
 
         {/* Col 2 – Explore */}
         <div className="footer__col">
-          <h4 className="footer__col-heading">Explore</h4>
+          <h4 className="footer__col-heading">
+            Explore
+            <img src="/heading-underline.svg" alt="" className="footer__col-underline" />
+          </h4>
           <ul className="footer__links">
             {EXPLORE_LINKS.map((l) => <li key={l}><a href="#">{l}</a></li>)}
           </ul>
@@ -72,7 +75,10 @@ export default function Footer() {
 
         {/* Col 3 – How it works */}
         <div className="footer__col">
-          <h4 className="footer__col-heading">How it works</h4>
+          <h4 className="footer__col-heading">
+            How it works
+            <img src="/heading-underline.svg" alt="" className="footer__col-underline" />
+          </h4>
           <ul className="footer__links">
             {HOW_LINKS.map((l) => <li key={l}><a href="#">{l}</a></li>)}
           </ul>
@@ -92,7 +98,10 @@ export default function Footer() {
 
         {/* Col 4 – About */}
         <div className="footer__col">
-          <h4 className="footer__col-heading">About</h4>
+          <h4 className="footer__col-heading">
+            About
+            <img src="/heading-underline.svg" alt="" className="footer__col-underline" />
+          </h4>
           <ul className="footer__links">
             {ABOUT_LINKS.map((l) => <li key={l}><a href="#">{l}</a></li>)}
           </ul>
