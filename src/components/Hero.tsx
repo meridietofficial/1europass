@@ -76,14 +76,15 @@ export default function Hero() {
 
         <div className="hero__video-wrap">
           <video
-            src="/hero-animation.mp4"
             autoPlay
             loop
             muted
             playsInline
             className="hero__video"
             disablePictureInPicture
-          />
+          >
+            <source src="/hero-video.mp4" type="video/mp4" />
+          </video>
         </div>
       </div>
     </section>

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 interface Category {
   name: string
   desc: string
@@ -24,9 +26,9 @@ export default function Categories() {
             Explore popular categories
             <img src="/star-icon.svg" alt="" className="categories__title-star" />
           </h2>
-          <a href="/categories" className="categories__view-all">
+          <Link to="/categories" className="categories__view-all">
             View all categories →
-          </a>
+          </Link>
         </div>
 
         <div className="categories__grid">

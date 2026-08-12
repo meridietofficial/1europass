@@ -12,7 +12,6 @@ const ABOUT_LINKS = [
   'About us', 'Blog', 'Press', 'Careers', 'Contact us', 'Help Center',
 ]
 
-const BOTTOM_LINKS = ['About Us', 'Contact', 'Privacy Policy', 'Terms of Service', 'FAQ', 'Careers']
 
 const SOCIAL = [
   {
@@ -46,88 +45,68 @@ export default function Footer() {
 
         {/* Col 1 – Brand */}
         <div className="footer__brand">
-          <img src="/logo.png" alt="1 Euro Pass" className="footer__logo" />
+          <img src="/logo.svg" alt="1 Euro Pass" className="footer__logo" />
           <p className="footer__tagline-text">
             All the essentials students need.<br />
             One pass. Countless opportunities.<br />
             <strong>Across Europe &amp; UK.</strong>
           </p>
-          <img src="/footer-city.png" alt="" className="footer__city" />
+          <img src="/footer-city.svg" alt="" className="footer__city" />
         </div>
 
         {/* Col 2 – Explore */}
         <div className="footer__col">
-          <h4 className="footer__col-heading">
-            Explore
+          <div className="footer__col-header">
+            <h4 className="footer__col-heading">Explore</h4>
             <img src="/heading-underline.svg" alt="" className="footer__col-underline" />
-          </h4>
+          </div>
           <ul className="footer__links">
             {EXPLORE_LINKS.map((l) => <li key={l}><a href="#">{l}</a></li>)}
           </ul>
           <div className="footer__doodle">
-            <svg viewBox="0 0 80 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="34" cy="34" r="22" stroke="#1a1a1a" strokeWidth="3" />
-              <line x1="50" y1="52" x2="70" y2="76" stroke="#1a1a1a" strokeWidth="4" strokeLinecap="round" />
-              <circle cx="34" cy="34" r="12" stroke="#5dae61" strokeWidth="2" strokeDasharray="4 3" />
-            </svg>
+            <img src="/footer-heart.svg" alt="" />
           </div>
         </div>
 
         {/* Col 3 – How it works */}
         <div className="footer__col">
-          <h4 className="footer__col-heading">
-            How it works
+          <div className="footer__col-header">
+            <h4 className="footer__col-heading">How it works</h4>
             <img src="/heading-underline.svg" alt="" className="footer__col-underline" />
-          </h4>
+          </div>
           <ul className="footer__links">
             {HOW_LINKS.map((l) => <li key={l}><a href="#">{l}</a></li>)}
           </ul>
           <div className="footer__doodle">
-            <svg viewBox="0 0 80 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M40 10 C22 10 12 22 12 34 C12 46 20 54 30 58 L30 66 L50 66 L50 58 C60 54 68 46 68 34 C68 22 58 10 40 10Z" stroke="#1a1a1a" strokeWidth="3" fill="none" />
-              <rect x="30" y="66" width="20" height="6" rx="3" stroke="#1a1a1a" strokeWidth="2.5" />
-              <rect x="32" y="72" width="16" height="5" rx="2.5" stroke="#1a1a1a" strokeWidth="2.5" />
-              <line x1="40" y1="18" x2="40" y2="28" stroke="#f5b942" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="26" y1="22" x2="30" y2="30" stroke="#f5b942" strokeWidth="2" strokeLinecap="round" />
-              <line x1="54" y1="22" x2="50" y2="30" stroke="#f5b942" strokeWidth="2" strokeLinecap="round" />
-              <line x1="18" y1="34" x2="26" y2="34" stroke="#f5b942" strokeWidth="2" strokeLinecap="round" />
-              <line x1="54" y1="34" x2="62" y2="34" stroke="#f5b942" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            <img src="/footer-bulb.svg" alt="" />
           </div>
         </div>
 
         {/* Col 4 – About */}
         <div className="footer__col">
-          <h4 className="footer__col-heading">
-            About
+          <div className="footer__col-header">
+            <h4 className="footer__col-heading">About</h4>
             <img src="/heading-underline.svg" alt="" className="footer__col-underline" />
-          </h4>
+          </div>
           <ul className="footer__links">
             {ABOUT_LINKS.map((l) => <li key={l}><a href="#">{l}</a></li>)}
           </ul>
           <div className="footer__doodle">
-            <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M40 62 C40 62 14 46 14 28 C14 18 22 12 30 14 C34 15 38 18 40 22 C42 18 46 15 50 14 C58 12 66 18 66 28 C66 46 40 62 40 62Z" stroke="#e04f5f" strokeWidth="3" fill="none" />
-              <path d="M56 18 C60 16 66 20 64 26" stroke="#5dae61" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="62" cy="14" r="3" stroke="#5dae61" strokeWidth="2" />
-            </svg>
+            <img src="/footer-search.svg" alt="" />
           </div>
         </div>
 
         {/* Col 5 – Stay in the loop */}
         <div className="footer__loop-card">
-          <h4 className="footer__loop-heading">Stay in the loop</h4>
+          <h4 className="footer__loop-heading">
+            Stay in the loop
+            <img src="/heading-underline.svg" alt="" className="footer__loop-underline" />
+          </h4>
           <p className="footer__loop-sub">Get updates on new listings, student deals &amp; more.</p>
           <input className="footer__loop-input" type="email" placeholder="Enter your email" />
           <button className="footer__loop-btn" type="button">Subscribe</button>
           <div className="footer__loop-doodle">
-            <svg viewBox="0 0 90 70" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="8" y="14" width="58" height="42" rx="6" stroke="#1a1a1a" strokeWidth="2.5" />
-              <path d="M8 20 L37 40 L66 20" stroke="#1a1a1a" strokeWidth="2.5" strokeLinecap="round" />
-              <circle cx="74" cy="20" r="10" stroke="#5dae61" strokeWidth="2.5" fill="none" />
-              <path d="M70 20 L73 23 L78 17" stroke="#5dae61" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="82" cy="10" r="4" stroke="#f5b942" strokeWidth="2" fill="none" />
-            </svg>
+            <img src="/loop-doodle.svg" alt="" />
           </div>
         </div>
 
@@ -150,7 +129,7 @@ export default function Footer() {
 
         {/* Help */}
         <div className="footer__help">
-          <h5 className="footer__bottom-heading footer__bottom-heading--lg">We're here to help</h5>
+          <h5 className="footer__bottom-heading">We're here to help</h5>
           <div className="footer__help-contact">
             <svg className="footer__help-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
@@ -165,8 +144,10 @@ export default function Footer() {
 
         {/* Get the app */}
         <div className="footer__app">
-          <h5 className="footer__bottom-heading">Get the app</h5>
-          <p className="footer__app-sub">Find, connect &amp; save on the go.</p>
+          <div className="footer__app-label">
+            <h5 className="footer__bottom-heading">Get the app</h5>
+            <p className="footer__app-sub">Find, connect &amp; save on the go.</p>
+          </div>
           <div className="footer__app-btns">
             <a href="#" className="footer__app-btn">
               <svg viewBox="0 0 24 24" fill="currentColor" className="footer__app-btn-icon"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" /></svg>
@@ -194,15 +175,9 @@ export default function Footer() {
             <rect x="3" y="11" width="18" height="11" rx="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          © 2024 1 Euro Pass — Your Student Life, Simplified.
+          © 2026 1 Euro Pass — Your Student Life, Simplified.
         </div>
-        <nav className="footer__bar-links">
-          {BOTTOM_LINKS.map((l, i) => (
-            <a key={l} href="#">
-              {l}{i < BOTTOM_LINKS.length - 1 && <span className="footer__bar-sep">|</span>}
-            </a>
-          ))}
-        </nav>
+        <img src="/footer-corner-doodle.svg" alt="" className="footer__bar-doodle" />
       </div>
 
     </footer>

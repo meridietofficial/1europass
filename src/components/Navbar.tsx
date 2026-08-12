@@ -11,7 +11,7 @@ export default function Navbar() {
       <nav className="navbar">
         <div className="navbar__inner">
           <a href="/" className="navbar__logo">
-            <img src="/logo.png" alt="1 Euro Pass" className="navbar__logo-img" />
+            <img src="/logo.svg" alt="1 Euro Pass" className="navbar__logo-img" />
           </a>
 
           <nav className="navbar__nav">

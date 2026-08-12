@@ -59,7 +59,7 @@ export default function AuthModal({ initialMode, onClose }: Props) {
 
         {/* Brand */}
         <div className="auth-modal__brand">
-          <img src="/logo.png" alt="1 Euro Pass" className="auth-modal__logo" />
+          <img src="/logo.svg" alt="1 Euro Pass" className="auth-modal__logo" />
         </div>
 
         {/* Tabs */}
