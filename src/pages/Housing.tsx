@@ -1,17 +1,17 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
 const CITIES = [
-  { name: 'Berlin',    emoji: '🏛️' },
-  { name: 'Amsterdam', emoji: '🚲' },
-  { name: 'Paris',     emoji: '🗼' },
-  { name: 'Madrid',    emoji: '☀️' },
-  { name: 'Barcelona', emoji: '🏖️' },
-  { name: 'Milan',     emoji: '👗' },
-  { name: 'Lisbon',    emoji: '🌊' },
-  { name: 'Vienna',    emoji: '🎻' },
+  { name: 'Berlin',    svg: '/city-berlin.svg' },
+  { name: 'Amsterdam', svg: '/city-amsterdam.svg' },
+  { name: 'Paris',     svg: '/city-paris.svg' },
+  { name: 'Madrid',    svg: '/city-madrid.svg' },
+  { name: 'Barcelona', svg: '/city-barcelona.svg' },
+  { name: 'Milan',     svg: '/city-milan.svg' },
+  { name: 'Lisbon',    svg: '/city-lisbon.svg' },
+  { name: 'Vienna',    svg: '/city-vienna.svg' },
 ]
 
 const LISTINGS = [
@@ -33,6 +33,8 @@ export default function Housing() {
   const [rent, setRent] = useState(1000)
   const [activeCity, setActiveCity] = useState('Berlin')
   const [favorites, setFavorites] = useState<number[]>([])
+
+  const navigate = useNavigate()
 
   const toggleFav = (id: number) =>
     setFavorites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id])
@@ -109,7 +111,7 @@ export default function Housing() {
                   className={`housing__city-btn${activeCity === c.name ? ' housing__city-btn--active' : ''}`}
                   onClick={() => setActiveCity(c.name)}
                 >
-                  <span className="housing__city-emoji">{c.emoji}</span>
+                  <img src={c.svg} alt={c.name} className="housing__city-img" />
                   <span className="housing__city-name">{c.name}</span>
                 </button>
               ))}
@@ -211,12 +213,12 @@ export default function Housing() {
 
             <div className="housing__grid">
               {LISTINGS.map(l => (
-                <div key={l.id} className="housing__card">
+                <div key={l.id} className="housing__card" onClick={() => navigate(`/housing/${l.id}`)}>
                   <div className="housing__card-img" style={{ background: l.gradient }}>
                     {l.verified && <span className="housing__card-verified">✔ VERIFIED</span>}
                     <button
                       className={`housing__card-fav${favorites.includes(l.id) ? ' housing__card-fav--active' : ''}`}
-                      onClick={() => toggleFav(l.id)}
+                      onClick={e => { e.stopPropagation(); toggleFav(l.id) }}
                     >♥</button>
                   </div>
                   <div className="housing__card-body">
@@ -234,7 +236,7 @@ export default function Housing() {
                         <div className="housing__card-avatar">{l.agent[0]}</div>
                         <span>{l.agent}</span>
                       </div>
-                      <button className="housing__card-details">View details +</button>
+                      <button className="housing__card-details" onClick={e => { e.stopPropagation(); navigate(`/housing/${l.id}`) }}>View details +</button>
                     </div>
                   </div>
                 </div>
@@ -243,6 +245,71 @@ export default function Housing() {
           </div>
 
         </div>{/* end housing__body */}
+
+        {/* ── MAP EXPLORE SECTION ── */}
+        <div className="housing__map-section">
+          <div className="housing__map-left">
+            <h2 className="housing__map-title">Explore housing around you</h2>
+            <p className="housing__map-sub">See available rooms near universities, transport and student hotspots.</p>
+            <button className="housing__map-open-btn">Open map view</button>
+          </div>
+          <div className="housing__map-right">
+            <img src="/housing-map.svg" alt="Housing map" className="housing__map-img" />
+          </div>
+        </div>
+
+        {/* ── TRUST SECTION ── */}
+        <div className="housing__trust-section">
+          <div className="housing__trust-left">
+            <h2 className="housing__trust-title">Find housing with confidence.</h2>
+            <p className="housing__trust-sub">We help students discover safer, clearer and more student-friendly housing.</p>
+          </div>
+          <div className="housing__trust-features">
+            <div className="housing__trust-feature">
+              <img src="/trust-verified.svg" alt="" className="housing__trust-icon" />
+              <div>
+                <div className="housing__trust-feature-title">Verified listings</div>
+                <div className="housing__trust-feature-desc">Listings can be verified before students contact hosts.</div>
+              </div>
+            </div>
+            <div className="housing__trust-feature">
+              <img src="/trust-student.svg" alt="" className="housing__trust-icon" />
+              <div>
+                <div className="housing__trust-feature-title">Student-friendly</div>
+                <div className="housing__trust-feature-desc">Built specifically for international students.</div>
+              </div>
+            </div>
+            <div className="housing__trust-feature">
+              <img src="/trust-pricing.svg" alt="" className="housing__trust-icon" />
+              <div>
+                <div className="housing__trust-feature-title">Clear pricing</div>
+                <div className="housing__trust-feature-desc">See rent, deposit and included bills upfront.</div>
+              </div>
+            </div>
+            <div className="housing__trust-feature">
+              <img src="/trust-support.svg" alt="" className="housing__trust-icon" />
+              <div>
+                <div className="housing__trust-feature-title">Report &amp; support</div>
+                <div className="housing__trust-feature-desc">Something doesn't look right? Report it to us.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── LANDLORD CTA SECTION ── */}
+        <div className="housing__landlord-section">
+          <div className="housing__landlord-img-wrap">
+            <img src="/landlord-illustration.svg" alt="" className="housing__landlord-img" />
+          </div>
+          <div className="housing__landlord-content">
+            <h2 className="housing__landlord-title">Have a room to rent?</h2>
+            <p className="housing__landlord-sub">Reach international students looking for housing across Europe.</p>
+            <p className="housing__landlord-link">Post your listing for just €1.</p>
+            <p className="housing__landlord-tagline"><strong>Simple. Fast. Student-friendly.</strong></p>
+          </div>
+          <button className="housing__landlord-btn">Post a listing for €1 →</button>
+        </div>
+
         </div>{/* end housing__content-card */}
       </main>
       <Footer />

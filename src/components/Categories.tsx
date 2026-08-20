@@ -15,6 +15,8 @@ const CATEGORIES: Category[] = [
   { name: 'Gyms & Fitness', desc: 'Gyms, yoga &\nfitness studios', img: '/cat-gyms.png' },
   { name: 'Events', desc: 'Parties, workshops\n& activities', img: '/cat-events.png' },
   { name: 'Local Services', desc: 'Laundry, printing,\nrepair & more', img: '/cat-services.png' },
+  { name: 'Tutor', desc: 'Academic help\n& Study Support', img: '/cat-tutor.svg' },
+  { name: 'Friend', desc: 'Meet like-minded\nfriends', img: '/cat-friend.svg' },
 ]
 
 export default function Categories() {

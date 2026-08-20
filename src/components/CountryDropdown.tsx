@@ -1,41 +1,69 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactDOM from 'react-dom'
 import { COUNTRIES } from '../data/countries'
+import type { ApiCountry } from '../api/locations'
+
+interface CountryItem {
+  code: string
+  name: string
+  flag: string
+  europe: boolean
+}
 
 interface Props {
   value: string
   onChange: (code: string) => void
   placeholder?: string
+  apiCountries?: ApiCountry[]
+  loading?: boolean
 }
 
-const EUROPE = COUNTRIES.filter((c) => c.europe)
-const REST   = COUNTRIES.filter((c) => !c.europe)
+function buildItems(apiCountries?: ApiCountry[]): { europe: CountryItem[]; rest: CountryItem[] } {
+  const items: CountryItem[] = apiCountries
+    ? apiCountries.map((c) => {
+        const staticMatch = COUNTRIES.find((s) => s.code === c.iso2)
+        return {
+          code: c.iso2,
+          name: c.name,
+          flag: staticMatch?.flag ?? '🌍',
+          europe: staticMatch?.europe ?? false,
+        }
+      })
+    : COUNTRIES.map((c) => ({ code: c.code, name: c.name, flag: c.flag, europe: c.europe ?? false }))
 
-export default function CountryDropdown({ value, onChange, placeholder = 'Select country' }: Props) {
-  const [open, setOpen]       = useState(false)
-  const [search, setSearch]   = useState('')
+  return {
+    europe: items.filter((c) => c.europe),
+    rest: items.filter((c) => !c.europe),
+  }
+}
+
+export default function CountryDropdown({
+  value,
+  onChange,
+  placeholder = 'Select country',
+  apiCountries,
+  loading = false,
+}: Props) {
+  const [open, setOpen]           = useState(false)
+  const [search, setSearch]       = useState('')
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
   const triggerRef = useRef<HTMLButtonElement>(null)
   const searchRef  = useRef<HTMLInputElement>(null)
 
-  const selected = COUNTRIES.find((c) => c.code === value)
+  const { europe: europeAll, rest: restAll } = buildItems(apiCountries)
+  const allItems = [...europeAll, ...restAll]
+  const selected = allItems.find((c) => c.code === value)
 
-  const filtered = (list: typeof COUNTRIES) =>
+  const filter = (list: CountryItem[]) =>
     list.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
 
-  const europe = filtered(EUROPE)
-  const rest   = filtered(REST)
+  const europe = filter(europeAll)
+  const rest   = filter(restAll)
 
   function openMenu() {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect()
-      setMenuStyle({
-        position: 'fixed',
-        top: rect.bottom + 4,
-        left: rect.left,
-        width: rect.width,
-        zIndex: 9999,
-      })
+      setMenuStyle({ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, zIndex: 9999 })
     }
     setOpen(true)
   }
@@ -126,9 +154,12 @@ export default function CountryDropdown({ value, onChange, placeholder = 'Select
         ref={triggerRef}
         type="button"
         className={`search-dropdown__trigger auth-form__input ${!selected ? 'is-placeholder' : ''}`}
-        onClick={() => open ? setOpen(false) : openMenu()}
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        disabled={loading}
       >
-        {selected ? (
+        {loading ? (
+          <span className="search-dropdown__placeholder">Loading…</span>
+        ) : selected ? (
           <span className="search-dropdown__selected">
             <span className="search-dropdown__flag">{selected.flag}</span>
             <span>{selected.name}</span>

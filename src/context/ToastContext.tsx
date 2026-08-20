@@ -6,6 +6,7 @@ interface Toast {
   id: number
   message: string
   type: ToastType
+  exiting: boolean
 }
 
 interface ToastContextType {
@@ -14,49 +15,41 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | null>(null)
 
-const BG: Record<ToastType, string> = {
-  success: '#16a34a',
-  error: '#dc2626',
-  info: '#1d4ed8',
-}
+const DURATION = 3000
+const EXIT_DURATION = 320
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = Date.now()
-    setToasts((prev) => [...prev, { id, message, type }])
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000)
+    setToasts((prev) => [...prev, { id, message, type, exiting: false }])
+
+    setTimeout(() => {
+      setToasts((prev) => prev.map((t) => t.id === id ? { ...t, exiting: true } : t))
+      setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), EXIT_DURATION)
+    }, DURATION)
   }, [])
+
+  function dismiss(id: number) {
+    setToasts((prev) => prev.map((t) => t.id === id ? { ...t, exiting: true } : t))
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), EXIT_DURATION)
+  }
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-        }}
-      >
+      <div className="toast-stack">
         {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            style={{
-              padding: '12px 20px',
-              borderRadius: 8,
-              background: BG[toast.type],
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: 14,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            }}
-          >
-            {toast.message}
+          <div key={toast.id} className={`toast toast--${toast.type}${toast.exiting ? ' is-exiting' : ''}`}>
+            <div className="toast__icon">
+              {toast.type === 'success' && <CheckIcon />}
+              {toast.type === 'error'   && <XIcon />}
+              {toast.type === 'info'    && <InfoIcon />}
+            </div>
+            <span className="toast__message">{toast.message}</span>
+            <button className="toast__close" type="button" onClick={() => dismiss(toast.id)}>✕</button>
+            <div className="toast__progress" />
           </div>
         ))}
       </div>
@@ -68,4 +61,31 @@ export function useToast() {
   const ctx = useContext(ToastContext)
   if (!ctx) throw new Error('useToast must be used within ToastProvider')
   return ctx
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+
+function XIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  )
+}
+
+function InfoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="8" strokeWidth="3" />
+      <line x1="12" y1="12" x2="12" y2="16" />
+    </svg>
+  )
 }

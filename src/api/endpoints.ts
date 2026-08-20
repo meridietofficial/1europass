@@ -1,9 +1,14 @@
 export const ENDPOINTS = {
   auth: {
-    login: '/api/auth/login',
-    register: '/api/auth/register',
+    login: '/api/v1/auth/login',
+    register: '/api/v1/auth/register',
     googleLogin: '/api/auth/google',
     logout: '/api/auth/logout',
+  },
+  locations: {
+    countries: '/api/v1/locations/countries',
+    states: '/api/v1/locations/states',
+    cities: '/api/v1/locations/cities',
   },
   user: {
     me: '/api/user/me',
