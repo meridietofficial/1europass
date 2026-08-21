@@ -83,7 +83,7 @@ const BEDROOM_OPTIONS = [
   { value: '1 Bed', label: '1 Bed', sub: '1 bedroom' },
   { value: '2 Bed', label: '2 Bed', sub: '2 bedrooms' },
   { value: '3 Bed', label: '3 Bed', sub: '3 bedrooms' },
-  { value: '4+ Bed', label: '4+ Bed', sub: '4 or more' },
+  { value: '4 Bed', label: '4 Bed', sub: '4 bedrooms' },
 ] as const
 const LAUNDRY_OPTIONS = ['In-unit', 'Shared', 'None'] as const
 const FLOOR_OPTIONS = ['Ground', '1st', '2nd', '3rd', '4th', '5th+'] as const
@@ -155,6 +155,7 @@ export default function CreateHousingListing() {
   const [title, setTitle] = useState('')
   const [country, setCountry] = useState('')
   const [bedrooms, setBedrooms] = useState('')
+  const [customBedrooms, setCustomBedrooms] = useState('')
   const [size, setSize] = useState('')
   const [floor, setFloor] = useState('')
   const [elevator, setElevator] = useState<boolean | null>(null)
@@ -274,13 +275,10 @@ function toggleOwnerDecl(k: string) { setOwnerDecl(prev => ({ ...prev, [k]: !pre
 
             <div className="cl-steps">
               <div className="cl-step is-active">
-                <div className="cl-step__icon-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                    <polyline points="9 22 9 12 15 12 15 22" />
-                  </svg>
-                </div>
                 <div className="cl-step__circle">1</div>
+                <div className="cl-step__icon-wrap">
+                  <img src="/step-basic-info.svg" width="36" height="36" alt="Basic Info" />
+                </div>
                 <div className="cl-step__info">
                   <span className="cl-step__label">Basic Info</span>
                   <span className="cl-step__sub">What are you renting?</span>
@@ -288,13 +286,10 @@ function toggleOwnerDecl(k: string) { setOwnerDecl(prev => ({ ...prev, [k]: !pre
               </div>
               <div className="cl-steps__line" />
               <div className="cl-step">
-                <div className="cl-step__icon-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                    <circle cx="12" cy="13" r="4" />
-                  </svg>
-                </div>
                 <div className="cl-step__circle">2</div>
+                <div className="cl-step__icon-wrap">
+                  <img src="/step-photos.svg" width="36" height="36" alt="Photos" />
+                </div>
                 <div className="cl-step__info">
                   <span className="cl-step__label">Photos</span>
                   <span className="cl-step__sub">Make your listing stand out</span>
@@ -302,15 +297,10 @@ function toggleOwnerDecl(k: string) { setOwnerDecl(prev => ({ ...prev, [k]: !pre
               </div>
               <div className="cl-steps__line" />
               <div className="cl-step">
-                <div className="cl-step__icon-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="9" y1="13" x2="15" y2="13" />
-                    <line x1="9" y1="17" x2="15" y2="17" />
-                  </svg>
-                </div>
                 <div className="cl-step__circle">3</div>
+                <div className="cl-step__icon-wrap">
+                  <img src="/step-review.svg" width="36" height="36" alt="Review & Publish" />
+                </div>
                 <div className="cl-step__info">
                   <span className="cl-step__label">Review &amp; Publish</span>
                   <span className="cl-step__sub">See what others will see</span>
@@ -386,12 +376,28 @@ function toggleOwnerDecl(k: string) { setOwnerDecl(prev => ({ ...prev, [k]: !pre
                       key={opt.value}
                       type="button"
                       className={`prop-config-btn${bedrooms === opt.value ? ' is-active' : ''}`}
-                      onClick={() => setBedrooms(bedrooms === opt.value ? '' : opt.value)}
+                      onClick={() => { setBedrooms(bedrooms === opt.value ? '' : opt.value); setCustomBedrooms('') }}
                     >
                       <span className="prop-config-btn__label">{opt.label}</span>
                       <span className="prop-config-btn__sub">{opt.sub}</span>
                     </button>
                   ))}
+                  <label className={`prop-config-btn prop-config-btn--input${customBedrooms ? ' is-active' : ''}`}>
+                    <span className="prop-config-input-wrap">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11" className="prop-config-edit-icon">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      <input
+                        className="prop-config-input"
+                        type="number"
+                        min="1"
+                        placeholder="0"
+                        value={customBedrooms}
+                        onChange={e => { setCustomBedrooms(e.target.value); setBedrooms(e.target.value ? `${e.target.value} Bed` : '') }}
+                      />
+                    </span>
+                    <span className="prop-config-btn__sub">Custom</span>
+                  </label>
                 </div>
               </div>
 
@@ -453,44 +459,16 @@ function toggleOwnerDecl(k: string) { setOwnerDecl(prev => ({ ...prev, [k]: !pre
 
                 {/* Map */}
                 <div className="cl-map" style={{ height: 220, marginTop: 14 }}>
-                  {lat !== null && lng !== null ? (
-                    <iframe
-                      className="cl-map-frame"
-                      title="Property location"
-                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.008},${lat - 0.008},${lng + 0.008},${lat + 0.008}&layer=mapnik&marker=${lat},${lng}`}
-                      allowFullScreen
-                    />
-                  ) : (
-                    <>
-                      <svg className="cl-map__svg" viewBox="0 0 500 220" preserveAspectRatio="xMidYMid slice">
-                        <rect width="500" height="220" fill="#e8efda" />
-                        <rect x="0" y="95" width="500" height="13" fill="#fff" opacity="0.85" />
-                        <rect x="0" y="150" width="500" height="8" fill="#fff" opacity="0.6" />
-                        <rect x="0" y="62" width="500" height="6" fill="#fff" opacity="0.5" />
-                        <rect x="140" y="0" width="11" height="220" fill="#fff" opacity="0.85" />
-                        <rect x="260" y="0" width="8" height="220" fill="#fff" opacity="0.6" />
-                        <rect x="370" y="0" width="6" height="220" fill="#fff" opacity="0.5" />
-                        <rect x="60" y="0" width="6" height="220" fill="#fff" opacity="0.4" />
-                        <rect x="70" y="10" width="60" height="42" rx="3" fill="#c9d9b0" opacity="0.8" />
-                        <rect x="155" y="10" width="95" height="42" rx="3" fill="#bfce9e" opacity="0.7" />
-                        <rect x="275" y="10" width="80" height="42" rx="3" fill="#c9d9b0" opacity="0.7" />
-                        <rect x="380" y="10" width="105" height="42" rx="3" fill="#c0d4a0" opacity="0.6" />
-                        <rect x="70" y="112" width="60" height="30" rx="3" fill="#c9d9b0" opacity="0.7" />
-                        <rect x="155" y="112" width="95" height="30" rx="3" fill="#bfce9e" opacity="0.6" />
-                        <rect x="275" y="112" width="80" height="30" rx="3" fill="#c0d4a0" opacity="0.7" />
-                        <rect x="380" y="112" width="105" height="72" rx="3" fill="#c9d9b0" opacity="0.6" />
-                        <rect x="70" y="160" width="60" height="52" rx="3" fill="#c0d4a0" opacity="0.6" />
-                        <rect x="155" y="160" width="95" height="52" rx="3" fill="#c9d9b0" opacity="0.5" />
-                        <rect x="275" y="160" width="80" height="52" rx="3" fill="#bfce9e" opacity="0.5" />
-                      </svg>
-                      <div className="cl-map__placeholder">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#b0afa8" strokeWidth="1.5" width="28" height="28">
-                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
-                        </svg>
-                        <span>Search for an address to see it on the map</span>
-                      </div>
-                    </>
-                  )}
+                  <iframe
+                    className="cl-map-frame"
+                    title="Property location"
+                    src={
+                      lat !== null && lng !== null
+                        ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.008},${lat - 0.008},${lng + 0.008},${lat + 0.008}&layer=mapnik&marker=${lat},${lng}`
+                        : `https://www.openstreetmap.org/export/embed.html?bbox=77.494,28.4644,77.514,28.4844&layer=mapnik&marker=28.4744,77.504`
+                    }
+                    allowFullScreen
+                  />
                 </div>
 
                 {/* Address details card */}

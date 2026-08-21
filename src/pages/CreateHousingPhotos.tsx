@@ -3,7 +3,17 @@ import { Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
-const PHOTO_LABELS = ['Living Room', 'Bedroom', 'Kitchen', 'Bathroom', 'Exterior', 'Other']
+const PHOTO_LABELS = [
+  { label: 'Living Room', icon: '🛋️' },
+  { label: 'Bedroom', icon: '🛏️' },
+  { label: 'Kitchen', icon: '🍳' },
+  { label: 'Bathroom', icon: '🚿' },
+  { label: 'Drawing Room', icon: '🪑' },
+  { label: 'Dining Room', icon: '🍽️' },
+  { label: 'Balcony', icon: '🌅' },
+  { label: 'Exterior', icon: '🏠' },
+  { label: 'Other', icon: '📷' },
+]
 
 const PHOTO_TIPS = [
   {
@@ -64,6 +74,8 @@ export default function CreateHousingPhotos() {
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [videoDragOver, setVideoDragOver] = useState(false)
+  const [showLabelModal, setShowLabelModal] = useState(false)
+  const [pendingLabel, setPendingLabel] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
 
@@ -71,25 +83,41 @@ export default function CreateHousingPhotos() {
   const qualityStars = Math.min(5, Math.ceil((photos.length / MAX_PHOTOS) * 5))
   const photoProgress = Math.min(100, Math.round((photos.length / MAX_PHOTOS) * 100))
 
-  function addPhotos(files: File[]) {
+  function addPhotos(files: File[], label: string) {
     const images = files.filter(f => f.type.startsWith('image/'))
-    const newItems: PhotoItem[] = images.map((file, i) => ({
+    const newItems: PhotoItem[] = images.map(file => ({
       file,
       url: URL.createObjectURL(file),
-      label: PHOTO_LABELS[Math.min(photos.length + i, PHOTO_LABELS.length - 1)],
+      label,
     }))
     setPhotos(prev => [...prev, ...newItems].slice(0, MAX_PHOTOS))
   }
 
+  function handleAddPhotoClick() {
+    setShowLabelModal(true)
+  }
+
+  function handleLabelSelect(label: string) {
+    setPendingLabel(label)
+    setShowLabelModal(false)
+    fileRef.current?.click()
+  }
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    addPhotos(Array.from(e.target.files ?? []))
+    addPhotos(Array.from(e.target.files ?? []), pendingLabel || 'Other')
     e.target.value = ''
+    setPendingLabel('')
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
     setDragOver(false)
-    addPhotos(Array.from(e.dataTransfer.files))
+    if (!pendingLabel) {
+      setShowLabelModal(true)
+      return
+    }
+    addPhotos(Array.from(e.dataTransfer.files), pendingLabel)
+    setPendingLabel('')
   }
 
   function removePhoto(idx: number) {
@@ -142,15 +170,13 @@ export default function CreateHousingPhotos() {
 
             <div className="cl-steps">
               <div className="cl-step">
-                <div className="cl-step__icon-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
-                  </svg>
-                </div>
                 <div className="cl-step__circle cl-step__circle--done">
                   <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" width="13" height="13">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
+                </div>
+                <div className="cl-step__icon-wrap">
+                  <img src="/step-basic-info.svg" width="36" height="36" alt="Basic Info" />
                 </div>
                 <div className="cl-step__info">
                   <span className="cl-step__label">Basic Info</span>
@@ -159,13 +185,10 @@ export default function CreateHousingPhotos() {
               </div>
               <div className="cl-steps__line cl-steps__line--done" />
               <div className="cl-step is-active">
-                <div className="cl-step__icon-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                    <circle cx="12" cy="13" r="4" />
-                  </svg>
-                </div>
                 <div className="cl-step__circle">2</div>
+                <div className="cl-step__icon-wrap">
+                  <img src="/step-photos.svg" width="36" height="36" alt="Photos" />
+                </div>
                 <div className="cl-step__info">
                   <span className="cl-step__label">Photos</span>
                   <span className="cl-step__sub">Make your listing stand out</span>
@@ -173,13 +196,10 @@ export default function CreateHousingPhotos() {
               </div>
               <div className="cl-steps__line" />
               <div className="cl-step">
-                <div className="cl-step__icon-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" /><line x1="9" y1="13" x2="15" y2="13" /><line x1="9" y1="17" x2="15" y2="17" />
-                  </svg>
-                </div>
                 <div className="cl-step__circle">3</div>
+                <div className="cl-step__icon-wrap">
+                  <img src="/step-review.svg" width="36" height="36" alt="Review & Publish" />
+                </div>
                 <div className="cl-step__info">
                   <span className="cl-step__label">Review &amp; Publish</span>
                   <span className="cl-step__sub">See what others will see</span>
@@ -243,7 +263,7 @@ export default function CreateHousingPhotos() {
                     value={p.label}
                     onChange={e => updateLabel(idx, e.target.value)}
                   >
-                    {PHOTO_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
+                    {PHOTO_LABELS.map(l => <option key={l.label} value={l.label}>{l.label}</option>)}
                   </select>
                 </div>
               ))}
@@ -255,7 +275,7 @@ export default function CreateHousingPhotos() {
                   onDragOver={e => { e.preventDefault(); setDragOver(true) }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
-                  onClick={() => fileRef.current?.click()}
+                  onClick={handleAddPhotoClick}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="1.5" width="36" height="36">
                     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -373,6 +393,43 @@ export default function CreateHousingPhotos() {
         </div>
 
       </main>
+
+      {/* Room label modal */}
+      {showLabelModal && (
+        <div className="ph-modal-overlay" onClick={() => setShowLabelModal(false)}>
+          <div className="ph-modal" onClick={e => e.stopPropagation()}>
+            <div className="ph-modal__header">
+              <h3 className="ph-modal__title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="20" height="20">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+                What room is this photo of?
+              </h3>
+              <p className="ph-modal__sub">Select the area to label your photo correctly.</p>
+              <button className="ph-modal__close" type="button" onClick={() => setShowLabelModal(false)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="ph-modal__grid">
+              {PHOTO_LABELS.map(item => (
+                <button
+                  key={item.label}
+                  type="button"
+                  className="ph-modal__option"
+                  onClick={() => handleLabelSelect(item.label)}
+                >
+                  <span className="ph-modal__option-icon">{item.icon}</span>
+                  <span className="ph-modal__option-label">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </>
   )
