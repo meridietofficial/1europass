@@ -46,16 +46,6 @@ const PROPERTY_TYPES = [
     ),
   },
   {
-    id: 'floor',
-    label: 'Floor',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="26" height="26">
-        <rect x="2" y="3" width="20" height="18" rx="2" />
-        <path d="M2 12h20M8 3v9M16 12v9" />
-      </svg>
-    ),
-  },
-  {
     id: 'room',
     label: 'Room',
     icon: (

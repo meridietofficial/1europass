@@ -35,6 +35,7 @@ export default function Navbar() {
             <a href="/how-it-works">How it works</a>
             <a href="/for-businesses">For Businesses</a>
             <a href="/about">About us</a>
+            <a href="/profile/post">Post a Listing</a>
           </nav>
 
           <div className="navbar__actions">

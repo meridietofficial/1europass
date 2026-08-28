@@ -8,6 +8,12 @@ import PostListing from './pages/PostListing'
 import CreateHousingListing from './pages/CreateHousingListing'
 import CreateHousingPhotos from './pages/CreateHousingPhotos'
 import CreateHousingReview from './pages/CreateHousingReview'
+import CreateRoommateListing from './pages/CreateRoommateListing'
+import RoommatePreferences from './pages/RoommatePreferences'
+import RoommateReview from './pages/RoommateReview'
+import CreateBuySellListing from './pages/CreateBuySellListing'
+import BuySellPhotos from './pages/BuySellPhotos'
+import BuySellReview from './pages/BuySellReview'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 
@@ -47,6 +53,12 @@ export default function App() {
       <Route path="/profile/post/housing" element={<CreateHousingListing />} />
       <Route path="/profile/post/housing/photos" element={<CreateHousingPhotos />} />
       <Route path="/profile/post/housing/review" element={<CreateHousingReview />} />
+      <Route path="/profile/post/roommates" element={<CreateRoommateListing />} />
+      <Route path="/profile/post/roommates/preferences" element={<RoommatePreferences />} />
+      <Route path="/profile/post/roommates/review" element={<RoommateReview />} />
+      <Route path="/profile/post/buy-sell" element={<CreateBuySellListing />} />
+      <Route path="/profile/post/buy-sell/photos" element={<BuySellPhotos />} />
+      <Route path="/profile/post/buy-sell/review" element={<BuySellReview />} />
       <Route path="/profile/post/:category" element={<CategoryComingSoon />} />
     </Routes>
   )
