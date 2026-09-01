@@ -48,7 +48,10 @@ export default function Housing() {
         <div className="housing__hero">
           <div className="housing__hero-left">
             <h1 className="housing__hero-title">
-              Find your <span className="housing__hero-accent">place in Europe.</span>
+              Find your <span className="housing__hero-accent">
+                place in Europe.
+                <img src="/underline.svg" alt="" className="housing__hero-underline" />
+              </span>
             </h1>
             <p className="housing__hero-sub">
               <img src="/star-icon.svg" alt="" className="housing__hero-sub-icon" />

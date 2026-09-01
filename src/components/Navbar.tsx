@@ -39,16 +39,20 @@ export default function Navbar() {
           </nav>
 
           <div className="navbar__actions">
-            <button className="navbar__lang" type="button">
+            <a href="/profile" className="navbar__lang">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
                 <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
               </svg>
-              EN
+              <span>
+                {user && (user.city || user.country)
+                  ? [user.city, user.country].filter(Boolean).join(', ')
+                  : 'EN'}
+              </span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 12, height: 12 }}>
                 <polyline points="6 9 12 15 18 9" />
               </svg>
-            </button>
+            </a>
 
             {user ? (
               <div className="navbar__user-wrap" ref={dropdownRef}>

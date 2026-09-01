@@ -1,7 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Navigate, Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import PhoneDialDropdown from '../components/PhoneDialDropdown'
+import CountryDropdown from '../components/CountryDropdown'
+import RegionDropdown from '../components/RegionDropdown'
+import { fetchCountries, fetchStates, fetchCities } from '../api/locations'
+import type { ApiCountry } from '../api/locations'
+import { COUNTRIES } from '../data/countries'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 
@@ -283,24 +289,116 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
   const [form, setForm] = useState({
     full_name: user.full_name ?? '',
     email: user.email ?? '',
-    phone_code: user.phone_code ?? '',
     phone_number: user.phone_number ?? '',
-    country: user.country ?? '',
-    state: user.state ?? '',
-    city: user.city ?? '',
     dob: user.dob ?? '',
     language: user.language ?? '',
   })
   const [saving, setSaving] = useState(false)
 
+  const [dialCode, setDialCode] = useState(user.phone_code ?? '+44')
+  const [countryCode, setCountryCode] = useState(() => {
+    if (!user.country) return 'GB'
+    const match = COUNTRIES.find((c) => c.name.toLowerCase() === (user.country ?? '').toLowerCase())
+    return match?.code ?? 'GB'
+  })
+
+  const [apiCountries, setApiCountries]         = useState<ApiCountry[]>([])
+  const [countriesLoading, setCountriesLoading] = useState(false)
+  const [apiStates, setApiStates]               = useState<string[]>([])
+  const [statesLoading, setStatesLoading]       = useState(false)
+  const [stateVal, setStateVal]                 = useState(user.state ?? '')
+  const [apiCities, setApiCities]               = useState<string[]>([])
+  const [citiesLoading, setCitiesLoading]       = useState(false)
+  const [cityVal, setCityVal]                   = useState(user.city ?? '')
+
+  const skipCountryEffect = useRef(true)
+  const skipStateEffect   = useRef(true)
+
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  // Fetch countries on mount, pre-load states (and cities if state is set)
+  useEffect(() => {
+    setCountriesLoading(true)
+    fetchCountries()
+      .then((countries) => {
+        setApiCountries(countries)
+        const current = countries.find((c) => c.iso2 === countryCode)
+        if (!current) return
+        setStatesLoading(true)
+        fetchStates(current.name)
+          .then((states) => {
+            setApiStates(states)
+            if (stateVal) {
+              setCitiesLoading(true)
+              fetchCities(current.name, stateVal)
+                .then(setApiCities)
+                .catch(() => setApiCities([]))
+                .finally(() => setCitiesLoading(false))
+            }
+          })
+          .catch(() => setApiStates([]))
+          .finally(() => setStatesLoading(false))
+      })
+      .catch(() => {})
+      .finally(() => setCountriesLoading(false))
+  }, [])
+
+  // Fetch states when country changes (skip first render)
+  useEffect(() => {
+    if (skipCountryEffect.current) { skipCountryEffect.current = false; return }
+    setApiStates([])
+    setStateVal('')
+    setApiCities([])
+    setCityVal('')
+    if (!countryCode || apiCountries.length === 0) return
+    const country = apiCountries.find((c) => c.iso2 === countryCode)
+    if (!country) return
+    setStatesLoading(true)
+    fetchStates(country.name)
+      .then(setApiStates)
+      .catch(() => setApiStates([]))
+      .finally(() => setStatesLoading(false))
+  }, [countryCode])
+
+  // Fetch cities when state changes (skip first render)
+  useEffect(() => {
+    if (skipStateEffect.current) { skipStateEffect.current = false; return }
+    setApiCities([])
+    setCityVal('')
+    if (!stateVal || !countryCode || apiCountries.length === 0) return
+    const country = apiCountries.find((c) => c.iso2 === countryCode)
+    if (!country) return
+    setCitiesLoading(true)
+    fetchCities(country.name, stateVal)
+      .then(setApiCities)
+      .catch(() => setApiCities([]))
+      .finally(() => setCitiesLoading(false))
+  }, [stateVal])
+
+  function handleCountryChange(code: string) {
+    setCountryCode(code)
+    const country = apiCountries.find((c) => c.iso2 === code)
+    if (country) setDialCode(country.phone_code)
+  }
+
+  function handleDialChange(dial: string) {
+    setDialCode(dial)
+    const fromApi = apiCountries.find((c) => c.phone_code === dial)
+    if (fromApi) setCountryCode(fromApi.iso2)
+    else {
+      const fromStatic = COUNTRIES.find((c) => c.dial === dial)
+      if (fromStatic) setCountryCode(fromStatic.code)
+    }
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+    const countryName = apiCountries.find((c) => c.iso2 === countryCode)?.name ?? countryCode
     try {
+      // TODO: wire up actual API save with { ...form, phone_code: dialCode, country: countryName, state: stateVal, city: cityVal }
       await new Promise((r) => setTimeout(r, 600))
       showToast('Profile updated successfully!', 'success')
     } catch {
@@ -314,7 +412,6 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
     <>
       <div className="profile-panel__header">
         <h3 className="profile-panel__title">Personal Information</h3>
-        <p className="profile-panel__subtitle">Update your personal details here</p>
       </div>
 
       <form className="profile-form" onSubmit={handleSave} noValidate>
@@ -331,6 +428,34 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
                 placeholder="Your full name"
               />
             </div>
+            <div className="profile-form__field">
+              <label className="profile-form__label">Date of Birth</label>
+              <input
+                className="profile-form__input"
+                type="date"
+                value={form.dob}
+                onChange={(e) => set('dob', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="profile-form__row">
+            <div className="profile-form__field">
+              <label className="profile-form__label">Language</label>
+              <input
+                className="profile-form__input"
+                type="text"
+                value={form.language}
+                onChange={(e) => set('language', e.target.value)}
+                placeholder="e.g. English"
+              />
+            </div>
+            <div className="profile-form__field" />
+          </div>
+        </div>
+
+        <div className="profile-form__section">
+          <div className="profile-form__section-label">Contact</div>
+          <div className="profile-form__row">
             <div className="profile-form__field">
               <label className="profile-form__label">Email Address</label>
               <div className="profile-form__input-wrap">
@@ -350,52 +475,18 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
                 )}
               </div>
             </div>
-          </div>
-          <div className="profile-form__row">
-            <div className="profile-form__field">
-              <label className="profile-form__label">Date of Birth</label>
-              <input
-                className="profile-form__input"
-                type="date"
-                value={form.dob}
-                onChange={(e) => set('dob', e.target.value)}
-              />
-            </div>
-            <div className="profile-form__field">
-              <label className="profile-form__label">Language</label>
-              <input
-                className="profile-form__input"
-                type="text"
-                value={form.language}
-                onChange={(e) => set('language', e.target.value)}
-                placeholder="e.g. English"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="profile-form__section">
-          <div className="profile-form__section-label">Contact</div>
-          <div className="profile-form__row">
-            <div className="profile-form__field">
-              <label className="profile-form__label">Phone Code</label>
-              <input
-                className="profile-form__input"
-                type="text"
-                value={form.phone_code}
-                onChange={(e) => set('phone_code', e.target.value)}
-                placeholder="+44"
-              />
-            </div>
             <div className="profile-form__field">
               <label className="profile-form__label">Phone Number</label>
-              <input
-                className="profile-form__input"
-                type="text"
-                value={form.phone_number}
-                onChange={(e) => set('phone_number', e.target.value)}
-                placeholder="07700 000000"
-              />
+              <div className="profile-form__phone">
+                <PhoneDialDropdown value={dialCode} onChange={handleDialChange} />
+                <input
+                  className="profile-form__input profile-form__phone-num"
+                  type="tel"
+                  placeholder="712 345 678"
+                  value={form.phone_number}
+                  onChange={(e) => set('phone_number', e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -405,34 +496,35 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
           <div className="profile-form__row">
             <div className="profile-form__field">
               <label className="profile-form__label">Country</label>
-              <input
-                className="profile-form__input"
-                type="text"
-                value={form.country}
-                onChange={(e) => set('country', e.target.value)}
-                placeholder="Country"
+              <CountryDropdown
+                value={countryCode}
+                onChange={handleCountryChange}
+                apiCountries={apiCountries.length > 0 ? apiCountries : undefined}
+                loading={countriesLoading}
               />
             </div>
             <div className="profile-form__field">
               <label className="profile-form__label">State / Region</label>
-              <input
-                className="profile-form__input"
-                type="text"
-                value={form.state}
-                onChange={(e) => set('state', e.target.value)}
-                placeholder="State or region"
+              <RegionDropdown
+                items={apiStates}
+                value={stateVal}
+                onChange={setStateVal}
+                placeholder="Select state"
+                loading={statesLoading}
+                disabled={!countryCode}
               />
             </div>
           </div>
           <div className="profile-form__row">
             <div className="profile-form__field">
               <label className="profile-form__label">City</label>
-              <input
-                className="profile-form__input"
-                type="text"
-                value={form.city}
-                onChange={(e) => set('city', e.target.value)}
-                placeholder="City"
+              <RegionDropdown
+                items={apiCities}
+                value={cityVal}
+                onChange={setCityVal}
+                placeholder="Select city"
+                loading={citiesLoading}
+                disabled={!stateVal}
               />
             </div>
             <div className="profile-form__field" />

@@ -11,6 +11,9 @@ import CreateHousingReview from './pages/CreateHousingReview'
 import CreateRoommateListing from './pages/CreateRoommateListing'
 import RoommatePreferences from './pages/RoommatePreferences'
 import RoommateReview from './pages/RoommateReview'
+import Roommates from './pages/Roommates'
+import BuySell from './pages/BuySell'
+import Tutor from './pages/Tutor'
 import CreateBuySellListing from './pages/CreateBuySellListing'
 import BuySellPhotos from './pages/BuySellPhotos'
 import BuySellReview from './pages/BuySellReview'
@@ -48,6 +51,9 @@ export default function App() {
       <Route path="/categories" element={<AllCategories />} />
       <Route path="/housing" element={<Housing />} />
       <Route path="/housing/:id" element={<HousingDetail />} />
+      <Route path="/roommates" element={<Roommates />} />
+      <Route path="/buy-sell" element={<BuySell />} />
+      <Route path="/tutor" element={<Tutor />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/profile/post" element={<PostListing />} />
       <Route path="/profile/post/housing" element={<CreateHousingListing />} />
