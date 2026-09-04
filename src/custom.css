@@ -11956,8 +11956,8 @@
   border: 1px solid #E5E7EB;
   border-radius: 16px;
   box-shadow: 0px 1px 2px 0px #0000000D;
-  width: 167px;
-  height: 210px;
+  width: 100%;
+  min-height: 210px;
   padding: 12px 12px 16px;
   display: flex;
   flex-direction: column;

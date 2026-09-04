@@ -234,8 +234,8 @@ export default function CreateRoommateListing() {
                         </svg>
                       </div>
                       <div className="crl-intent-card__body">
-                        <span className="crl-intent-card__title">I Have a Room</span>
-                        <span className="crl-intent-card__desc">I have a room and looking for a roommate.</span>
+                        <span className="crl-intent-card__title">I Need a Room</span>
+                        <span className="crl-intent-card__desc">I'm new and looking for room with roommate.</span>
                       </div>
                       {intent === 'have-room' && <span className="crl-intent-card__check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" width="13" height="13"><polyline points="20 6 9 17 4 12" /></svg></span>}
                     </button>
@@ -248,7 +248,7 @@ export default function CreateRoommateListing() {
                       </div>
                       <div className="crl-intent-card__body">
                         <span className="crl-intent-card__title">I Need a Roommate</span>
-                        <span className="crl-intent-card__desc">I'm looking for someone to rent a place with.</span>
+                        <span className="crl-intent-card__desc">I have a room and looking for a roommate.</span>
                       </div>
                       {intent === 'need-room' && <span className="crl-intent-card__check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" width="13" height="13"><polyline points="20 6 9 17 4 12" /></svg></span>}
                     </button>
