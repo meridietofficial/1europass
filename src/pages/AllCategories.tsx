@@ -1,37 +1,33 @@
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import { fetchCategories, type Category } from '../api/categories'
 
-interface Category {
-  name: string
-  desc: string
-  img: string
+const SLUG_ROUTES: Record<string, string> = {
+  housing: '/housing',
+  roommates: '/roommates',
+  'buy-and-sell': '/buy-sell',
+  tutor: '/tutor',
+  trip: '/trip',
 }
 
-const ALL_CATEGORIES: Category[] = [
-  { name: 'Housing',        desc: 'Rooms, flats\n& apartments',             img: '/cat-housing.png' },
-  { name: 'Jobs',           desc: 'Part-time, full-time\n& internships',     img: '/cat-jobs.png' },
-  { name: 'Roommates',      desc: 'Find or become\na roommate',              img: '/cat-roommates.png' },
-  { name: 'Buy & Sell',     desc: 'Furniture, bikes,\nbooks & more',         img: '/cat-buysell.png' },
-  { name: 'Restaurants',    desc: 'Food, cafés\n& takeaway',                 img: '/cat-restaurants.png' },
-  { name: 'Gyms & Fitness', desc: 'Gyms, yoga &\nfitness studios',           img: '/cat-gyms.png' },
-  { name: 'Events',         desc: 'Parties, workshops\n& activities',        img: '/cat-events.png' },
-  { name: 'Local Services', desc: 'Laundry, printing,\nrepair & more',       img: '/cat-services.png' },
-  { name: 'Student Deals',  desc: 'Exclusive discounts\nfor students',       img: '/cat-buysell.png' },
-  { name: 'Transportation', desc: 'Bikes, scooters\n& car sharing',          img: '/cat-services.png' },
-  { name: 'Tutoring',       desc: 'Study help &\nlanguage lessons',          img: '/cat-jobs.png' },
-  { name: 'Entertainment',  desc: 'Cinemas, clubs\n& activities',            img: '/cat-events.png' },
-]
-
-const CATEGORY_ROUTES: Record<string, string> = {
-  'Housing':    '/housing',
-  'Roommates':  '/roommates',
-  'Buy & Sell': '/buy-sell',
-  'Tutoring':   '/tutor',
+function categoryRoute(slug: string) {
+  return SLUG_ROUTES[slug] ?? `/profile/post/${slug}`
 }
 
 export default function AllCategories() {
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    fetchCategories()
+      .then(setCategories)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }, [])
 
   return (
     <>
@@ -46,28 +42,34 @@ export default function AllCategories() {
         </div>
 
         <div className="allcat__content-card">
-          <div className="allcat__cat-grid">
-            {ALL_CATEGORIES.map((cat) => (
-              <div
-                key={cat.name}
-                className="category-card"
-                onClick={() => CATEGORY_ROUTES[cat.name] && navigate(CATEGORY_ROUTES[cat.name])}
-              >
-                <div className="category-card__icon-wrap">
-                  <img src={cat.img} alt={cat.name} className="category-card__img" />
-                </div>
-                <div className="category-card__name">{cat.name}</div>
-                <div className="category-card__desc">
-                  {cat.desc.split('\n').map((line, i) => (
-                    <span key={i}>
-                      {line}
-                      {i === 0 ? <br /> : ''}
-                    </span>
+          {error ? (
+            <div style={{ textAlign: 'center', padding: '60px 24px', fontFamily: 'Poppins, sans-serif', color: '#888' }}>
+              Failed to load categories. Please try again later.
+            </div>
+          ) : (
+            <div className="allcat__cat-grid">
+              {loading
+                ? Array.from({ length: 12 }).map((_, i) => (
+                    <div key={i} className="category-card" style={{ opacity: 0.4, pointerEvents: 'none' }}>
+                      <div className="category-card__icon-wrap" style={{ background: '#e0ddd4' }} />
+                      <div className="category-card__name" style={{ background: '#e0ddd4', color: 'transparent', borderRadius: 4 }}>Loading</div>
+                    </div>
+                  ))
+                : categories.map((cat) => (
+                    <div
+                      key={cat.id}
+                      className="category-card"
+                      onClick={() => navigate(categoryRoute(cat.slug))}
+                    >
+                      <div className="category-card__icon-wrap">
+                        <img src={cat.icon} alt={cat.name} className="category-card__img" />
+                      </div>
+                      <div className="category-card__name">{cat.name}</div>
+                      <div className="category-card__desc">{cat.description}</div>
+                    </div>
                   ))}
-                </div>
-              </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       </main>
       <Footer />

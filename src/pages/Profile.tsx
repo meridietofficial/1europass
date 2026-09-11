@@ -11,7 +11,41 @@ import { COUNTRIES } from '../data/countries'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 
-type Tab = 'info' | 'listings' | 'security'
+type Tab = 'info' | 'student' | 'listings' | 'security'
+
+const COURSES = [
+  'Computer Science', 'Business Administration', 'Law', 'Medicine', 'Engineering',
+  'Economics', 'Psychology', 'Architecture', 'Data Science', 'Design',
+  'International Relations', 'Political Science', 'Sociology', 'Marketing',
+  'Finance', 'Biotechnology', 'Pharmacy', 'Education', 'Linguistics', 'Other',
+]
+const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', 'Masters Year 1', 'Masters Year 2', 'PhD', 'Exchange Student']
+const NATIONALITIES = [
+  'Afghan','Albanian','Algerian','American','Argentine','Australian','Austrian','Belgian',
+  'Brazilian','British','Bulgarian','Canadian','Chinese','Colombian','Croatian','Czech',
+  'Danish','Dutch','Egyptian','Estonian','Ethiopian','Filipino','Finnish','French',
+  'German','Greek','Hungarian','Indian','Indonesian','Iranian','Irish','Israeli',
+  'Italian','Japanese','Jordanian','Kenyan','Korean','Latvian','Lebanese','Lithuanian',
+  'Luxembourgish','Maltese','Mexican','Moroccan','Nepalese','Nigerian','Norwegian',
+  'Pakistani','Polish','Portuguese','Romanian','Russian','Serbian','Singaporean',
+  'Slovak','Slovenian','South African','Spanish','Swedish','Swiss','Thai','Turkish',
+  'Ukrainian','Uruguayan','Vietnamese','Other',
+]
+const LANGUAGES = [
+  'English','Dutch','German','French','Spanish','Italian','Portuguese','Polish',
+  'Romanian','Swedish','Norwegian','Danish','Finnish','Greek','Czech','Hungarian',
+  'Turkish','Arabic','Hindi','Urdu','Mandarin','Japanese','Korean','Russian','Bengali',
+]
+const LIFESTYLE_OPTIONS: { key: string; label: string; options: string[] }[] = [
+  { key: 'cleanliness', label: 'Cleanliness',    options: ['Low', 'Medium', 'High'] },
+  { key: 'sleep',       label: 'Sleep Schedule', options: ['Early Bird', 'Flexible', 'Night Owl'] },
+  { key: 'smoking',     label: 'Smoking',        options: ['No', 'Occasionally', 'Yes'] },
+  { key: 'drinking',    label: 'Drinking',       options: ['No', 'Occasionally', 'Yes'] },
+  { key: 'cooking',     label: 'Cooking',        options: ['Often', 'Sometimes', 'Never'] },
+  { key: 'guests',      label: 'Guests',         options: ['Rarely', 'Sometimes', 'Often'] },
+  { key: 'pets',        label: 'Pets',           options: ['No Pets', 'Have Pets', 'Love Pets'] },
+  { key: 'music',       label: 'Music',          options: ['Quiet', 'Moderate', 'Loud'] },
+]
 
 interface ProfileUser {
   id: string
@@ -55,6 +89,16 @@ export default function Profile() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />
+        </svg>
+      ),
+    },
+    {
+      key: 'student',
+      label: 'Student Profile',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+          <path d="M12 3L2 8l10 5 10-5-10-5z" />
+          <path d="M6 13v6M18 13v6M4 19h16" />
         </svg>
       ),
     },
@@ -269,6 +313,7 @@ export default function Profile() {
 
               <div className="profile-panel">
                 {activeTab === 'info' && <PersonalInfoPanel user={u} />}
+                {activeTab === 'student' && <StudentProfilePanel />}
                 {activeTab === 'listings' && <ListingsPanel />}
                 {activeTab === 'security' && <SecurityPanel />}
               </div>
@@ -528,6 +573,184 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
               />
             </div>
             <div className="profile-form__field" />
+          </div>
+        </div>
+
+        <div className="profile-form__actions">
+          <button type="submit" className="profile-form__save-btn" disabled={saving}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </form>
+    </>
+  )
+}
+
+/* ─── Student Profile Panel ────────────────────────── */
+
+function StudentProfilePanel() {
+  const { showToast } = useToast()
+  const [university, setUniversity]   = useState('')
+  const [course, setCourse]           = useState('')
+  const [year, setYear]               = useState('')
+  const [nationality, setNationality] = useState('')
+  const [languages, setLanguages]     = useState<string[]>([])
+  const [aboutMe, setAboutMe]         = useState('')
+  const [saving, setSaving]           = useState(false)
+  const [lifestyle, setLifestyle]     = useState<Record<string, string>>(
+    () => Object.fromEntries(LIFESTYLE_OPTIONS.map(r => [r.key, '']))
+  )
+
+  function toggleLanguage(lang: string) {
+    setLanguages(prev => prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang])
+  }
+
+  function setLifestyleOption(key: string, val: string) {
+    setLifestyle(prev => ({ ...prev, [key]: prev[key] === val ? '' : val }))
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      await new Promise(r => setTimeout(r, 600))
+      showToast('Student profile updated!', 'success')
+    } catch {
+      showToast('Failed to save. Please try again.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="profile-panel__header">
+        <h3 className="profile-panel__title">Student Profile</h3>
+        <p className="profile-panel__subtitle">This info appears on your roommate listings and helps others find a good match.</p>
+      </div>
+
+      <form className="profile-form" onSubmit={handleSave} noValidate>
+
+        {/* Academic */}
+        <div className="profile-form__section">
+          <div className="profile-form__section-label">Academic</div>
+          <div className="profile-form__row">
+            <div className="profile-form__field profile-form__field--full">
+              <label className="profile-form__label">University / School</label>
+              <input
+                className="profile-form__input"
+                type="text"
+                placeholder="e.g. University of Amsterdam, TU Delft..."
+                value={university}
+                onChange={e => setUniversity(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="profile-form__row">
+            <div className="profile-form__field">
+              <label className="profile-form__label">Course / Program</label>
+              <div className="crp-select-wrap">
+                <select className="crp-select profile-form__input" value={course} onChange={e => setCourse(e.target.value)}>
+                  <option value="">Select your course</option>
+                  {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <svg className="crp-select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
+              </div>
+            </div>
+            <div className="profile-form__field">
+              <label className="profile-form__label">Year of Study</label>
+              <div className="crp-select-wrap">
+                <select className="crp-select profile-form__input" value={year} onChange={e => setYear(e.target.value)}>
+                  <option value="">Select year</option>
+                  {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <svg className="crp-select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Background */}
+        <div className="profile-form__section">
+          <div className="profile-form__section-label">Background</div>
+          <div className="profile-form__row">
+            <div className="profile-form__field">
+              <label className="profile-form__label">Nationality</label>
+              <div className="crp-select-wrap">
+                <select className="crp-select profile-form__input" value={nationality} onChange={e => setNationality(e.target.value)}>
+                  <option value="">Select nationality</option>
+                  {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <svg className="crp-select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
+              </div>
+            </div>
+            <div className="profile-form__field" />
+          </div>
+          <div className="profile-form__row">
+            <div className="profile-form__field profile-form__field--full">
+              <label className="profile-form__label">Languages Spoken</label>
+              <div className="crp-lang-grid" style={{ marginTop: 8 }}>
+                {LANGUAGES.map(lang => (
+                  <button
+                    key={lang}
+                    type="button"
+                    className={`crp-lang-btn${languages.includes(lang) ? ' is-active' : ''}`}
+                    onClick={() => toggleLanguage(lang)}
+                  >
+                    {lang}
+                    {languages.includes(lang) && (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" style={{ marginLeft: 3 }}>
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* About Me */}
+        <div className="profile-form__section">
+          <div className="profile-form__section-label">About Me</div>
+          <div className="profile-form__row">
+            <div className="profile-form__field profile-form__field--full">
+              <label className="profile-form__label">About Me</label>
+              <p style={{ fontSize: 12, color: '#aaa', margin: '2px 0 8px' }}>Describe your routine, what you're like as a flatmate, what you enjoy.</p>
+              <textarea
+                className="profile-form__input cl-textarea"
+                rows={4}
+                placeholder="e.g. I'm a quiet and tidy student who works mostly in the mornings. I love cooking and enjoy a peaceful home environment..."
+                value={aboutMe}
+                onChange={e => setAboutMe(e.target.value.slice(0, 300))}
+              />
+              <div className="cl-char-count">{aboutMe.length}/300</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Lifestyle */}
+        <div className="profile-form__section">
+          <div className="profile-form__section-label">Lifestyle</div>
+          <p style={{ fontSize: 12, color: '#aaa', marginBottom: 14 }}>Helps others know if you're a good match as a flatmate.</p>
+          <div className="crp-lifestyle-grid">
+            {LIFESTYLE_OPTIONS.map(row => (
+              <div key={row.key} className="crp-lifestyle-row">
+                <span className="crp-lifestyle-label">{row.label}</span>
+                <div className="crl-gender-btns">
+                  {row.options.map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      className={`crl-gender-btn${lifestyle[row.key] === opt ? ' is-active' : ''}`}
+                      onClick={() => setLifestyleOption(row.key, opt)}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

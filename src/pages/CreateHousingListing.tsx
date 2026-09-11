@@ -240,7 +240,8 @@ export default function CreateHousingListing() {
     setIncluded((prev) => ({ ...prev, [key]: !prev[key] }))
   }
   function toggleNearbyPlace(id: string) { setNearbyPlaces(prev => ({ ...prev, [id]: !prev[id] })) }
-function toggleOwnerDecl(k: string) { setOwnerDecl(prev => ({ ...prev, [k]: !prev[k] })) }
+  function toggleOwnerDecl(k: string) { setOwnerDecl(prev => ({ ...prev, [k]: !prev[k] })) }
+
 
   return (
     <>

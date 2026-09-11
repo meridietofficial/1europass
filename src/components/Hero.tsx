@@ -23,7 +23,7 @@ export default function Hero() {
           </div>
 
           <p className="hero__description">
-            Join thousands of students across Europe and the UK using 1 Euro Pass to find, connect and save every day.
+            Join thousands of students across Europe and the UK<span className="hero__description-break"><br /></span> using 1 Euro Pass to find, connect and save every day.
           </p>
 
           <div className="hero__ctas">
@@ -40,36 +40,24 @@ export default function Hero() {
           <div className="hero__trust">
             <div className="hero__trust-item">
               <img src="/icon-secure.png" alt="" className="hero__trust-icon" />
-              <div>
-                <div className="hero__trust-label">Trusted Community</div>
-                <div className="hero__trust-desc">
-                  Verified users &amp;
-                  <br />
-                  safe platform
-                </div>
-              </div>
+              <span className="hero__trust-text">
+                Trusted Community<br />
+                <span className="hero__trust-sub">Verified users &amp; safe platform</span>
+              </span>
             </div>
             <div className="hero__trust-item">
               <img src="/icon-tag.png" alt="" className="hero__trust-icon" />
-              <div>
-                <div className="hero__trust-label">Only €1 to List</div>
-                <div className="hero__trust-desc">
-                  Simple, transparent
-                  <br />
-                  pricing
-                </div>
-              </div>
+              <span className="hero__trust-text">
+                Only €1 to List<br />
+                <span className="hero__trust-sub">Simple, transparent pricing</span>
+              </span>
             </div>
             <div className="hero__trust-item">
               <img src="/icon-heart.png" alt="" className="hero__trust-icon" />
-              <div>
-                <div className="hero__trust-label">
-                  For Students,
-                  <br />
-                  By Students
-                </div>
-                <div className="hero__trust-desc">Built for student life</div>
-              </div>
+              <span className="hero__trust-text">
+                For Students, By Students<br />
+                <span className="hero__trust-sub">Built for student life</span>
+              </span>
             </div>
           </div>
         </div>

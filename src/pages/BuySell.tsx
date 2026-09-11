@@ -19,7 +19,7 @@ const CATEGORIES = [
   { name: 'Others',                      img: '/cat-bs-fashion.svg',      bg: '#FFFFFF' },
 ]
 
-const LISTINGS = [
+export const LISTINGS = [
   { id: 1,  title: 'MacBook Air M1',       price: 250, condition: 'LIKE NEW', location: 'Dublin, Ireland',      time: '2h ago',  img: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80' },
   { id: 2,  title: '2-Seater Sofa',        price: 120, condition: 'GOOD',     location: 'Berlin, Germany',      time: '5h ago',  img: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80' },
   { id: 3,  title: 'Trek Hybrid Bike',     price: 90,  condition: 'GOOD',     location: 'Amsterdam, Neth...',   time: '1d ago',  img: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=400&q=80' },
@@ -154,7 +154,7 @@ export default function BuySell() {
                 {/* LISTINGS GRID */}
                 <div className="bs__grid">
                   {LISTINGS.map(l => (
-                    <div key={l.id} className="bs__card">
+                    <div key={l.id} className="bs__card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/buy-sell/${l.id}`)}>
                       <div className="bs__card-img-wrap">
                         <img src={l.img} alt={l.title} className="bs__card-img" />
                         <button

@@ -1,16 +1,27 @@
 import { useState, useRef, useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import AuthModal from './AuthModal'
 import { useAuth } from '../context/AuthContext'
 
 type AuthMode = 'login' | 'register' | null
 
-export default function Navbar() {
-  const [authMode, setAuthMode]   = useState<AuthMode>(null)
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const { user, logout } = useAuth()
-  const dropdownRef = useRef<HTMLDivElement>(null)
+const NAV_LINKS = [
+  { label: 'Categories',     to: '/categories' },
+  { label: 'For Businesses', to: '/for-businesses' },
+  { label: 'Blog',           to: '/blog' },
+  { label: 'About us',       to: '/about' },
+  { label: 'Careers',        to: '/careers' },
+]
 
-  // Close dropdown on outside click
+export default function Navbar() {
+  const [authMode, setAuthMode]     = useState<AuthMode>(null)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [menuOpen, setMenuOpen]     = useState(false)
+  const { user, logout }            = useAuth()
+  const dropdownRef                 = useRef<HTMLDivElement>(null)
+  const { pathname }                = useLocation()
+
+  // Close user dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -21,6 +32,15 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [menuOpen])
+
+  // Close mobile menu on route change
+  useEffect(() => { setMenuOpen(false) }, [pathname])
+
   return (
     <>
       <nav className="navbar">
@@ -29,15 +49,20 @@ export default function Navbar() {
             <img src="/logo.svg" alt="1 Euro Pass" className="navbar__logo-img" />
           </a>
 
+          {/* Desktop nav */}
           <nav className="navbar__nav">
-            <a href="/" className="active">Home</a>
-            <a href="/browse">Browse</a>
-            <a href="/how-it-works">How it works</a>
-            <a href="/for-businesses">For Businesses</a>
-            <a href="/about">About us</a>
-            <a href="/profile/post">Post a Listing</a>
+            {NAV_LINKS.map(({ label, to }) => (
+              <Link
+                key={to}
+                to={to}
+                className={pathname.startsWith(to) ? 'active' : ''}
+              >
+                {label}
+              </Link>
+            ))}
           </nav>
 
+          {/* Desktop actions */}
           <div className="navbar__actions">
             <a href="/profile" className="navbar__lang">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -104,8 +129,78 @@ export default function Navbar() {
               </>
             )}
           </div>
+
+          {/* Hamburger (mobile only) */}
+          <button
+            type="button"
+            className={`navbar__hamburger${menuOpen ? ' is-open' : ''}`}
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label="Toggle menu"
+          >
+            <span />
+            <span />
+            <span />
+          </button>
         </div>
       </nav>
+
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div className="navbar__mobile-menu">
+          <nav className="navbar__mobile-nav">
+            {NAV_LINKS.map(({ label, to }) => (
+              <Link
+                key={to}
+                to={to}
+                className={`navbar__mobile-link${pathname.startsWith(to) ? ' active' : ''}`}
+                onClick={() => setMenuOpen(false)}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="navbar__mobile-actions">
+            {user ? (
+              <>
+                <a href="/profile" className="navbar__mobile-profile" onClick={() => setMenuOpen(false)}>
+                  <div className="navbar__avatar">
+                    {user.profile_picture
+                      ? <img src={user.profile_picture} alt={user.full_name} className="navbar__avatar-img" />
+                      : user.full_name.charAt(0).toUpperCase()
+                    }
+                  </div>
+                  <span>{user.full_name}</span>
+                </a>
+                <button
+                  type="button"
+                  className="navbar__mobile-logout"
+                  onClick={() => { logout(); setMenuOpen(false) }}
+                >
+                  Log out
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="navbar__mobile-login"
+                  onClick={() => { setMenuOpen(false); setAuthMode('login') }}
+                >
+                  Log in
+                </button>
+                <button
+                  type="button"
+                  className="navbar__mobile-signup"
+                  onClick={() => { setMenuOpen(false); setAuthMode('register') }}
+                >
+                  Sign up
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {authMode && (
         <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} />

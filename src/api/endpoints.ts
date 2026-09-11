@@ -14,4 +14,7 @@ export const ENDPOINTS = {
     me: '/api/user/me',
     update: '/api/user/me',
   },
+  categories: {
+    list: '/api/v1/categories',
+  },
 } as const

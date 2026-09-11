@@ -1,77 +1,73 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
-const COURSES = [
-  'Computer Science', 'Business Administration', 'Law', 'Medicine', 'Engineering',
-  'Economics', 'Psychology', 'Architecture', 'Data Science', 'Design',
-  'International Relations', 'Political Science', 'Sociology', 'Marketing',
-  'Finance', 'Biotechnology', 'Pharmacy', 'Education', 'Linguistics', 'Other',
-]
+const PHOTO_ROOM_LABELS = ['Living Room', 'Bedroom', 'Kitchen', 'Bathroom', 'Common Area', 'Other']
 
-const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', 'Masters Year 1', 'Masters Year 2', 'PhD', 'Exchange Student']
+interface PhotoItem {
+  file: File
+  preview: string
+  label: string
+}
 
-const NATIONALITIES = [
-  'Afghan', 'Albanian', 'Algerian', 'American', 'Argentine', 'Australian',
-  'Austrian', 'Belgian', 'Brazilian', 'British', 'Bulgarian', 'Canadian',
-  'Chinese', 'Colombian', 'Croatian', 'Czech', 'Danish', 'Dutch',
-  'Egyptian', 'Estonian', 'Ethiopian', 'Filipino', 'Finnish', 'French',
-  'German', 'Greek', 'Hungarian', 'Indian', 'Indonesian', 'Iranian',
-  'Irish', 'Israeli', 'Italian', 'Japanese', 'Jordanian', 'Kenyan',
-  'Korean', 'Latvian', 'Lebanese', 'Lithuanian', 'Luxembourgish', 'Maltese',
-  'Mexican', 'Moroccan', 'Nepalese', 'Nigerian', 'Norwegian', 'Pakistani',
-  'Polish', 'Portuguese', 'Romanian', 'Russian', 'Serbian', 'Singaporean',
-  'Slovak', 'Slovenian', 'South African', 'Spanish', 'Swedish', 'Swiss',
-  'Thai', 'Turkish', 'Ukrainian', 'Uruguayan', 'Vietnamese', 'Other',
-]
+const MOCK_STUDENT_PROFILE = {
+  university: 'University of Amsterdam',
+  course: 'Computer Science',
+  year: '2nd Year',
+  nationality: 'Indian',
+  languages: ['English', 'Hindi'],
+  aboutMe: "I'm a quiet and tidy student who enjoys cooking and keeping things organised. Looking for a chill flatmate who respects shared spaces.",
+  lifestyle: {
+    Cleanliness: 'High',
+    'Sleep Schedule': 'Early Bird',
+    Smoking: 'No',
+    Drinking: 'Occasionally',
+    Cooking: 'Often',
+    Guests: 'Rarely',
+    Pets: 'Love Pets',
+    Music: 'Quiet',
+  },
+}
 
-const LANGUAGES = [
-  'English', 'Dutch', 'German', 'French', 'Spanish', 'Italian', 'Portuguese',
-  'Polish', 'Romanian', 'Swedish', 'Norwegian', 'Danish', 'Finnish',
-  'Greek', 'Czech', 'Hungarian', 'Turkish', 'Arabic', 'Hindi', 'Urdu',
-  'Mandarin', 'Japanese', 'Korean', 'Russian', 'Bengali',
-]
-
-const LIFESTYLE: { key: string; label: string; options: string[] }[] = [
-  { key: 'cleanliness', label: 'Cleanliness', options: ['Low', 'Medium', 'High'] },
-  { key: 'sleep', label: 'Sleep Schedule', options: ['Early Bird', 'Flexible', 'Night Owl'] },
-  { key: 'smoking', label: 'Smoking', options: ['No', 'Occasionally', 'Yes'] },
-  { key: 'drinking', label: 'Drinking', options: ['No', 'Occasionally', 'Yes'] },
-  { key: 'cooking', label: 'Cooking', options: ['Often', 'Sometimes', 'Never'] },
-  { key: 'guests', label: 'Guests', options: ['Rarely', 'Sometimes', 'Often'] },
-  { key: 'pets', label: 'Pets', options: ['No Pets', 'Have Pets', 'Love Pets'] },
-  { key: 'music', label: 'Music', options: ['Quiet', 'Moderate', 'Loud'] },
-]
+const LIFESTYLE_COLORS: Record<string, string> = {
+  High: '#5dae61', Low: '#e05252', Medium: '#f4b942',
+  'Early Bird': '#5dae61', 'Night Owl': '#6c63ff', Flexible: '#f4b942',
+  No: '#5dae61', Yes: '#e05252', Occasionally: '#f4b942',
+  Often: '#5dae61', Sometimes: '#f4b942', Never: '#e05252',
+  Rarely: '#5dae61',
+  'No Pets': '#888', 'Have Pets': '#f4b942', 'Love Pets': '#5dae61',
+  Quiet: '#5dae61', Moderate: '#f4b942', Loud: '#e05252',
+}
 
 export default function RoommatePreferences() {
   const navigate = useNavigate()
+  const p = MOCK_STUDENT_PROFILE
 
-  // About You
-  const [university, setUniversity] = useState('')
-  const [course, setCourse] = useState('')
-  const [year, setYear] = useState('')
-  const [age, setAge] = useState('')
-  const [nationality, setNationality] = useState('')
-  const [languages, setLanguages] = useState<string[]>([])
-  const [aboutMe, setAboutMe] = useState('')
+  const [shareProfile, setShareProfile] = useState(false)
+  const [photos, setPhotos] = useState<PhotoItem[]>([])
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  // Lifestyle
-  const [lifestyle, setLifestyle] = useState<Record<string, string>>({
-    cleanliness: '', sleep: '', smoking: '', drinking: '', cooking: '', guests: '', pets: '', music: '',
-  })
-
-  // About the Room / Flat
-  const [numPeople, setNumPeople] = useState(2)
-  const [rules, setRules] = useState('')
-
-  function setLifestyleOption(key: string, val: string) {
-    setLifestyle(prev => ({ ...prev, [key]: prev[key] === val ? '' : val }))
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    const newPhotos: PhotoItem[] = files.map((file, i) => ({
+      file,
+      preview: URL.createObjectURL(file),
+      label: PHOTO_ROOM_LABELS[photos.length + i] ?? 'Other',
+    }))
+    setPhotos(prev => [...prev, ...newPhotos])
+    e.target.value = ''
   }
 
-  function toggleLanguage(lang: string) {
-    setLanguages(prev => prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang])
+  function removePhoto(idx: number) {
+    setPhotos(prev => {
+      URL.revokeObjectURL(prev[idx].preview)
+      return prev.filter((_, i) => i !== idx)
+    })
   }
+
+  const photoCount = photos.length
+  const photoProgress = Math.min(100, Math.round((photoCount / 6) * 100))
 
   return (
     <>
@@ -86,11 +82,12 @@ export default function RoommatePreferences() {
                 <Link to="/profile">My Profile</Link><span className="cl-breadcrumb__sep">/</span>
                 <Link to="/profile/post">Post a Listing</Link><span className="cl-breadcrumb__sep">/</span>
                 <Link to="/profile/post/roommates">Roommates</Link><span className="cl-breadcrumb__sep">/</span>
-                <span>Preferences</span>
+                <span>Profile &amp; Photos</span>
               </nav>
               <h1 className="cl-hero__title">Create a new listing</h1>
               <p className="cl-hero__sub">List your place and connect with students across Europe.</p>
             </div>
+
             <div className="cl-steps">
               <div className="cl-step">
                 <div className="cl-step__circle cl-step__circle--done">
@@ -114,8 +111,8 @@ export default function RoommatePreferences() {
                   </svg>
                 </div>
                 <div className="cl-step__info">
-                  <span className="cl-step__label">Preferences</span>
-                  <span className="cl-step__sub">Make your listing stand out</span>
+                  <span className="cl-step__label">Profile &amp; Photos</span>
+                  <span className="cl-step__sub">Share your profile &amp; add photos</span>
                 </div>
               </div>
               <div className="cl-steps__line" />
@@ -128,7 +125,7 @@ export default function RoommatePreferences() {
                   </svg>
                 </div>
                 <div className="cl-step__info">
-                  <span className="cl-step__label">Review &amp; publish</span>
+                  <span className="cl-step__label">Review &amp; Publish</span>
                   <span className="cl-step__sub">See what others will see</span>
                 </div>
               </div>
@@ -141,217 +138,267 @@ export default function RoommatePreferences() {
             <div className="cl-left">
               <div className="crl-form-body">
 
-                {/* ── About You ── */}
+                {/* ── Photos ── */}
                 <div className="crl-form-section">
-                  <h2 className="crp-section-title">About You</h2>
+                  <h3 className="cl-card__title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
+                      <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    Add Photos *
+                  </h3>
+                  <p className="cl-card__sub">Show students what your space looks like. Listings with photos get far more clicks.</p>
 
-                  {/* University — full width */}
-                  <div style={{ marginBottom: 14 }}>
-                    <label className="cl-label" style={{ marginBottom: 6, display: 'block' }}>University / School *</label>
-                    <input
-                      className="cl-input"
-                      type="text"
-                      placeholder="e.g. University of Amsterdam, TU Delft..."
-                      value={university}
-                      onChange={e => setUniversity(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Course + Year — equal 2-col */}
-                  <div className="crl-form-2col" style={{ marginBottom: 14 }}>
-                    <div>
-                      <label className="cl-label" style={{ marginBottom: 6, display: 'block' }}>Course / Program *</label>
-                      <div className="crp-select-wrap">
-                        <select className="crp-select" value={course} onChange={e => setCourse(e.target.value)}>
-                          <option value="">Select your course</option>
-                          {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                        <svg className="crp-select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
+                  {photoCount > 0 && (
+                    <div className="crl-quality-badge">
+                      <div className="crl-quality-badge__left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+                        <span className="crl-quality-badge__title">Photo Quality</span>
+                      </div>
+                      <div className="crl-quality-badge__stars">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <svg key={i} viewBox="0 0 24 24" fill={i < Math.round((photoCount / 6) * 5) ? '#f4b942' : 'none'} stroke="#f4b942" strokeWidth="2" width="16" height="16">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          </svg>
+                        ))}
+                      </div>
+                      <span className="crl-quality-badge__count">{photoCount} / 6 Photos Added</span>
+                      <div className="crl-quality-badge__bar">
+                        <div className="crl-quality-badge__fill" style={{ width: `${photoProgress}%` }} />
                       </div>
                     </div>
-                    <div>
-                      <label className="cl-label" style={{ marginBottom: 6, display: 'block' }}>Year of Study</label>
-                      <div className="crp-select-wrap">
-                        <select className="crp-select" value={year} onChange={e => setYear(e.target.value)}>
-                          <option value="">Select year</option>
-                          {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                        <svg className="crp-select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
+                  )}
+
+                  <div className="crl-photo-grid">
+                    {photos.map((photo, idx) => (
+                      <div key={idx} className="crl-photo-item">
+                        <div className="crl-photo-item__img-wrap">
+                          <img src={photo.preview} alt={photo.label} className="crl-photo-item__img" />
+                          <button type="button" className="crl-photo-item__remove" onClick={() => removePhoto(idx)} aria-label="Remove photo">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" width="11" height="11"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                        <span className="crl-photo-item__label">{photo.label}</span>
+                      </div>
+                    ))}
+                    {photos.length < 6 && (
+                      <button type="button" className="crl-photo-add" onClick={() => fileRef.current?.click()}>
+                        <div className="crl-photo-add__icon-wrap">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="28" height="28">
+                            <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
+                          </svg>
+                        </div>
+                        <span className="crl-photo-add__text">Add Photo</span>
+                        <span className="crl-photo-add__sub">Recommended</span>
+                      </button>
+                    )}
+                  </div>
+                  <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFileChange} />
+                </div>
+
+                {/* ── Share Student Profile toggle ── */}
+                <div className="crl-form-section">
+                  <h3 className="cl-card__title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
+                      <circle cx="12" cy="8" r="4" /><path d="M20 21a8 8 0 1 0-16 0" />
+                    </svg>
+                    Share Your Student Profile
+                  </h3>
+                  <p className="cl-card__sub">
+                    Show your university, background, and lifestyle to potential roommates. Listings with a profile get 3× more responses.
+                  </p>
+
+                  <div
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      background: shareProfile ? '#f0faf1' : '#fafaf8',
+                      border: `1.5px solid ${shareProfile ? '#b7e0b9' : '#e8e8e0'}`,
+                      borderRadius: 12, padding: '14px 18px', marginTop: 14, cursor: 'pointer',
+                      transition: 'all 0.18s',
+                    }}
+                    onClick={() => setShareProfile(v => !v)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke={shareProfile ? '#5dae61' : '#aaa'} strokeWidth="2" width="22" height="22">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                      </svg>
+                      <div>
+                        <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, fontWeight: 700, color: shareProfile ? '#2e7d32' : '#444', margin: 0 }}>
+                          {shareProfile ? 'Profile shared with this listing' : 'Share my student profile'}
+                        </p>
+                        <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: 12, color: '#888', margin: '2px 0 0' }}>
+                          {shareProfile ? 'Potential roommates will see your info below' : 'Toggle on to attach your profile to this listing'}
+                        </p>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Age + Nationality — narrow age, wide nationality */}
-                  <div className="crl-form-2col crl-form-2col--age" style={{ marginBottom: 14 }}>
-                    <div>
-                      <label className="cl-label" style={{ marginBottom: 6, display: 'block' }}>Age *</label>
-                      <input
-                        className="cl-input"
-                        type="number"
-                        min="16"
-                        max="99"
-                        placeholder="e.g. 22"
-                        value={age}
-                        onChange={e => setAge(e.target.value)}
+                    <div
+                      style={{
+                        width: 44, height: 24, borderRadius: 12, flexShrink: 0,
+                        background: shareProfile ? '#5dae61' : '#d0cfc8',
+                        position: 'relative', transition: 'background 0.18s',
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: 'absolute', top: 3, left: shareProfile ? 23 : 3,
+                          width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.18)', transition: 'left 0.18s',
+                        }}
                       />
                     </div>
-                    <div>
-                      <label className="cl-label" style={{ marginBottom: 6, display: 'block' }}>Nationality *</label>
-                      <div className="crp-select-wrap">
-                        <select className="crp-select" value={nationality} onChange={e => setNationality(e.target.value)}>
-                          <option value="">Select nationality</option>
-                          {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
-                        </select>
-                        <svg className="crp-select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
+                  </div>
+
+                  {shareProfile && (
+                    <div style={{ marginTop: 6 }}>
+                      <div
+                        style={{
+                          display: 'flex', alignItems: 'flex-start', gap: 10,
+                          background: '#f0faf1', border: '1.5px solid #b7e0b9',
+                          borderRadius: 10, padding: '10px 14px', marginBottom: 18,
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="16" height="16" style={{ flexShrink: 0, marginTop: 1 }}>
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: 12, color: '#555', margin: 0 }}>
+                          This info comes from your <strong>Student Profile</strong>.{' '}
+                          <Link to="/profile" style={{ color: '#5dae61', fontWeight: 700 }}>Edit in Profile →</Link>
+                        </p>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Languages */}
-                  <div style={{ marginBottom: 14 }}>
-                    <label className="cl-label" style={{ marginBottom: 8, display: 'block' }}>Languages Spoken *</label>
-                    <div className="crp-lang-grid">
-                      {LANGUAGES.map(lang => (
-                        <button
-                          key={lang}
-                          type="button"
-                          className={`crp-lang-btn${languages.includes(lang) ? ' is-active' : ''}`}
-                          onClick={() => toggleLanguage(lang)}
-                        >
-                          {lang}
-                          {languages.includes(lang) && (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" style={{ marginLeft: 3 }}>
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                      {/* Academic */}
+                      <div className="crl-form-section" style={{ paddingTop: 0 }}>
+                        <h3 className="cl-card__title">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
+                            <path d="M12 3L2 8l10 5 10-5-10-5z" /><path d="M6 13v6M18 13v6M4 19h16" />
+                          </svg>
+                          Academic
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+                          <div className="crp-profile-row">
+                            <span className="crp-profile-row__label">University</span>
+                            <span className="crp-profile-row__value">{p.university || <em style={{ color: '#aaa' }}>Not set</em>}</span>
+                          </div>
+                          <div className="crp-profile-row">
+                            <span className="crp-profile-row__label">Course</span>
+                            <span className="crp-profile-row__value">{p.course || <em style={{ color: '#aaa' }}>Not set</em>}</span>
+                          </div>
+                          <div className="crp-profile-row">
+                            <span className="crp-profile-row__label">Year</span>
+                            <span className="crp-profile-row__value">{p.year || <em style={{ color: '#aaa' }}>Not set</em>}</span>
+                          </div>
+                          <div className="crp-profile-row">
+                            <span className="crp-profile-row__label">Nationality</span>
+                            <span className="crp-profile-row__value">{p.nationality || <em style={{ color: '#aaa' }}>Not set</em>}</span>
+                          </div>
+                          <div className="crp-profile-row">
+                            <span className="crp-profile-row__label">Languages</span>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {p.languages.length > 0
+                                ? p.languages.map(l => (
+                                    <span key={l} style={{ background: '#e8f5e9', color: '#2e7d32', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700, fontFamily: 'Nunito, sans-serif' }}>{l}</span>
+                                  ))
+                                : <em style={{ color: '#aaa', fontSize: 12 }}>Not set</em>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
 
-                  {/* About Me */}
-                  <div>
-                    <label className="cl-label" style={{ marginBottom: 6, display: 'block' }}>About Me</label>
-                    <p className="cl-card__sub" style={{ marginBottom: 8 }}>Describe yourself — your routine, what you're like as a flatmate, what you enjoy.</p>
-                    <textarea
-                      className="cl-textarea"
-                      rows={4}
-                      placeholder="e.g. I'm a quiet and tidy student who works mostly in the mornings. I love cooking and enjoy a peaceful home environment..."
-                      value={aboutMe}
-                      onChange={e => setAboutMe(e.target.value.slice(0, 300))}
-                    />
-                    <div className="cl-char-count">{aboutMe.length}/300</div>
-                  </div>
-                </div>
+                      {/* About Me */}
+                      <div className="crl-form-section">
+                        <h3 className="cl-card__title">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                          </svg>
+                          About Me
+                        </h3>
+                        <p style={{
+                          fontFamily: 'Nunito, sans-serif', fontSize: 13, color: '#444',
+                          background: '#fafaf8', border: '1.5px solid #eee',
+                          borderRadius: 10, padding: '12px 14px', marginTop: 12, lineHeight: 1.6,
+                        }}>
+                          {p.aboutMe || <em style={{ color: '#aaa' }}>Not set — add it in your Student Profile.</em>}
+                        </p>
+                      </div>
 
-                {/* ── About the Room / Flat ── */}
-                <div className="crl-form-section">
-                  <h2 className="crp-section-title">About the Room / Flat</h2>
-
-                  <div style={{ marginBottom: 16 }}>
-                    <label className="cl-label" style={{ marginBottom: 8, display: 'block' }}>Number of people in flat (including you) *</label>
-                    <div className="crp-spinner">
-                      <button type="button" className="crp-spinner__btn" onClick={() => setNumPeople(p => Math.max(1, p - 1))} disabled={numPeople <= 1} aria-label="Decrease">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14"><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                      </button>
-                      <span className="crp-spinner__val">{numPeople}</span>
-                      <button type="button" className="crp-spinner__btn" onClick={() => setNumPeople(p => Math.min(10, p + 1))} disabled={numPeople >= 10} aria-label="Increase">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="cl-label" style={{ marginBottom: 6, display: 'block' }}>Any rules or important info?</label>
-                    <textarea
-                      className="cl-textarea"
-                      rows={4}
-                      placeholder="E.g. No parties, quiet after 11pm, no shoes inside, etc."
-                      value={rules}
-                      onChange={e => setRules(e.target.value.slice(0, 150))}
-                    />
-                    <div className="cl-char-count">{rules.length}/150</div>
-                  </div>
-                </div>
-
-                {/* ── Lifestyle ── */}
-                <div className="crl-form-section">
-                  <h2 className="crp-section-title">Lifestyle</h2>
-                  <p className="crp-section-sub">Help others know you better. Select the option that best describes you.</p>
-
-                  <div className="crp-lifestyle-grid">
-                    {LIFESTYLE.map(row => (
-                      <div key={row.key} className="crp-lifestyle-row">
-                        <span className="crp-lifestyle-label">{row.label}</span>
-                        <div className="crl-gender-btns">
-                          {row.options.map(opt => (
-                            <button
-                              key={opt}
-                              type="button"
-                              className={`crl-gender-btn${lifestyle[row.key] === opt ? ' is-active' : ''}`}
-                              onClick={() => setLifestyleOption(row.key, opt)}
-                            >
-                              {opt}
-                            </button>
+                      {/* Lifestyle */}
+                      <div className="crl-form-section">
+                        <h3 className="cl-card__title">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
+                            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                          Lifestyle
+                        </h3>
+                        <div className="crp-lifestyle-grid" style={{ marginTop: 12 }}>
+                          {Object.entries(p.lifestyle).map(([label, val]) => (
+                            <div key={label} className="crp-lifestyle-row">
+                              <span className="crp-lifestyle-label">{label}</span>
+                              <span style={{
+                                fontFamily: 'Nunito, sans-serif', fontSize: 12, fontWeight: 700,
+                                color: LIFESTYLE_COLORS[val] ?? '#555',
+                                background: `${LIFESTYLE_COLORS[val] ?? '#555'}18`,
+                                borderRadius: 20, padding: '3px 12px',
+                              }}>{val}</span>
+                            </div>
                           ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
+
 
               </div>
             </div>
 
             {/* Right Column */}
-            <div className="cl-right" style={{ width: '320px', maxWidth: '320px', minWidth: 0 }}>
-              <div className="cl-card crl-preview-card">
-                <h3 className="cl-card__title" style={{ marginBottom: 12 }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
-                  Listing Preview
+            <div className="cl-right" style={{ width: '300px', maxWidth: '300px', minWidth: 0 }}>
+              <div className="cl-card" style={{ padding: '20px' }}>
+                <h3 className="cl-card__title" style={{ marginBottom: 10 }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
+                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  Why share your profile?
                 </h3>
-                <div className="crl-preview">
-                  <div className="crl-preview__img-wrap">
-                    <div className="crl-preview__img-placeholder" style={{ background: '#e8f5e9' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="1.5" width="40" height="40"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                    </div>
-                    <button type="button" className="crl-preview__heart" aria-label="Save">
-                      <svg viewBox="0 0 24 24" fill="#e05252" stroke="#e05252" strokeWidth="2" width="16" height="16"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
-                    </button>
-                  </div>
-                  <div className="crl-preview__body">
-                    <div className="crl-preview__title">Room in Shared Apartment</div>
-                    <div className="crl-preview__price">€650<span>/month</span></div>
-                    <div className="crl-preview__location">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="12" height="12"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                      De Pijp, Amsterdam
-                    </div>
-                    <div className="crl-preview__tags">
-                      <span className="crl-preview__tag">Furnished</span>
-                      <span className="crl-preview__tag">Wi-Fi</span>
-                      <span className="crl-preview__tag">Bills included</span>
-                    </div>
-                    <div className="crl-preview__avail">Available from 15 June</div>
-                    <div className="crl-preview__host">
-                      <div className="crl-preview__avatar">A</div>
-                      <div className="crl-preview__host-info">
-                        <span className="crl-preview__host-name">Anna</span>
-                        <span className="crl-preview__host-badge">Verified host</span>
-                      </div>
-                      <button type="button" className="crl-preview__details-link">View details <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12"><path d="M5 12h14M12 5l7 7-7 7" /></svg></button>
-                    </div>
-                  </div>
-                </div>
+                <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: 13, color: '#666', lineHeight: 1.6, margin: 0 }}>
+                  Roommate seekers browse your profile before contacting you. A complete student profile builds trust and gets you faster responses.
+                </p>
+                <Link
+                  to="/profile"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, marginTop: 14,
+                    fontFamily: 'Nunito, sans-serif', fontSize: 13, fontWeight: 700,
+                    color: '#5dae61', textDecoration: 'none',
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2.5" width="14" height="14">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Edit Student Profile
+                </Link>
               </div>
 
-              <div className="cl-card crl-tip-card">
+              <div className="cl-card crl-tip-card" style={{ marginTop: 16 }}>
                 <div className="crl-tip">
                   <div className="crl-tip__icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="#f4b942" strokeWidth="2" width="22" height="22"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                     <span className="crl-tip__sparkles">✨</span>
                   </div>
                   <p className="crl-tip__text">Tip</p>
-                  <p className="crl-tip__desc">A complete profile gets more responses. Add details in the next step!</p>
+                  <p className="crl-tip__desc">Add at least 3 photos — listings with photos get 5× more views.</p>
+                </div>
+              </div>
+
+              <div className="cl-card cl-card--draft" style={{ marginTop: 16 }}>
+                <div className="cl-draft">
+                  <div>
+                    <h4 className="cl-draft__title">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="16" height="16"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+                      Save as Draft
+                    </h4>
+                    <p className="cl-draft__sub">You can save and continue later.</p>
+                  </div>
+                  <button type="button" className="cl-draft__btn">Save Draft</button>
                 </div>
               </div>
             </div>
