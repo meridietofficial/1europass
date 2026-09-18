@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import CategoryComingSoon from '../components/CategoryComingSoon'
+import { useCategoryActive } from '../hooks/useCategoryActive'
 
 const TRIP_TYPES = [
   { name: 'All Trips',          icon: <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg> },
@@ -42,10 +45,14 @@ const WHY_ITEMS = [
 ]
 
 export default function Trip() {
+  const { active, loading } = useCategoryActive('trip')
   const navigate = useNavigate()
   const [favorites, setFavorites] = useState<number[]>([])
   const [activeType, setActiveType] = useState('All Trips')
   const [search, setSearch] = useState('')
+
+  if (loading) return null
+  if (!active) return <CategoryComingSoon name="Trips" />
 
   const toggleFav = (id: number) =>
     setFavorites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id])
@@ -56,6 +63,11 @@ export default function Trip() {
 
   return (
     <>
+      <Helmet>
+        <title>Student Trips in Europe — 1 Euro Pass</title>
+        <meta name="description" content="Discover and join affordable student trips across Europe. Weekend getaways, city breaks and adventure travel for international students." />
+        <link rel="canonical" href="https://1europass.com/trip" />
+      </Helmet>
       <Navbar />
       <main className="tr">
 

@@ -1,6 +1,9 @@
 import { useState } from 'react'
+import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import CategoryComingSoon from '../components/CategoryComingSoon'
+import { useCategoryActive } from '../hooks/useCategoryActive'
 
 const CATEGORIES = [
   { name: 'All Categories', icon: null },
@@ -57,15 +60,24 @@ const WHY_ITEMS = [
 ]
 
 export default function Tutor() {
+  const { active, loading } = useCategoryActive('tutor')
   const [favorites, setFavorites] = useState<number[]>([])
   const [activeCategory, setActiveCategory] = useState('All Categories')
   const [search, setSearch] = useState('')
+
+  if (loading) return null
+  if (!active) return <CategoryComingSoon name="Tutor" />
 
   const toggleFav = (id: number) =>
     setFavorites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id])
 
   return (
     <>
+      <Helmet>
+        <title>Find a Tutor in Europe — 1 Euro Pass</title>
+        <meta name="description" content="Get academic help from verified student tutors across Europe & UK. Find tutors for languages, math, IT, design and more." />
+        <link rel="canonical" href="https://1europass.com/tutor" />
+      </Helmet>
       <Navbar />
       <main className="tr">
 

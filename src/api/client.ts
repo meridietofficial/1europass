@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? ''
+export const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 const TOKEN_KEY = '1europass_token'
 
 function getHeaders(): HeadersInit {
@@ -45,6 +45,16 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
     method: 'PATCH',
     headers: getHeaders(),
     body: JSON.stringify(body),
+  })
+  return handleResponse<T>(res)
+}
+
+export async function apiPutForm<T>(path: string, body: FormData): Promise<T> {
+  const token = localStorage.getItem(TOKEN_KEY)
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'PUT',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body,
   })
   return handleResponse<T>(res)
 }

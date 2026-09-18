@@ -17,4 +17,17 @@ export const ENDPOINTS = {
   categories: {
     list: '/api/v1/categories',
   },
+  housing: {
+    list: '/api/v1/housing/list',
+    create: '/api/v1/housing',
+    get: (id: string) => `/api/v1/housing/${id}`,
+    view: (id: string) => `/api/v1/housing/${id}/view`,
+    update: (id: string) => `/api/v1/housing/${id}`,
+    status: (id: string) => `/api/v1/housing/${id}/status`,
+    delete: (id: string) => `/api/v1/housing/${id}`,
+  },
+  listings: {
+    my: '/api/v1/listings/my',
+  },
+  cloudinaryAuth: '/api/v1/cloudinary-auth',
 } as const

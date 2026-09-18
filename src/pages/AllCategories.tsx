@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import { fetchCategories, type Category } from '../api/categories'
@@ -20,7 +21,6 @@ export default function AllCategories() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const navigate = useNavigate()
 
   useEffect(() => {
     fetchCategories()
@@ -31,6 +31,11 @@ export default function AllCategories() {
 
   return (
     <>
+      <Helmet>
+        <title>All Categories — 1 Euro Pass</title>
+        <meta name="description" content="Browse all student categories on 1 Euro Pass: housing, roommates, buy & sell, tutors, trips, friends and more across Europe & UK." />
+        <link rel="canonical" href="https://1europass.com/categories" />
+      </Helmet>
       <Navbar />
       <main className="allcat">
         <div className="allcat__hero">
@@ -56,17 +61,17 @@ export default function AllCategories() {
                     </div>
                   ))
                 : categories.map((cat) => (
-                    <div
+                    <Link
                       key={cat.id}
+                      to={categoryRoute(cat.slug)}
                       className="category-card"
-                      onClick={() => navigate(categoryRoute(cat.slug))}
                     >
                       <div className="category-card__icon-wrap">
                         <img src={cat.icon} alt={cat.name} className="category-card__img" />
                       </div>
                       <div className="category-card__name">{cat.name}</div>
                       <div className="category-card__desc">{cat.description}</div>
-                    </div>
+                    </Link>
                   ))}
             </div>
           )}

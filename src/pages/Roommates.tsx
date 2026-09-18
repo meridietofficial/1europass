@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import CategoryComingSoon from '../components/CategoryComingSoon'
+import { useCategoryActive } from '../hooks/useCategoryActive'
 
 const CITIES = [
   { name: 'Berlin',    svg: '/city-berlin.svg' },
@@ -34,17 +37,26 @@ const TAG_COLORS: Record<string, string> = {
 }
 
 export default function Roommates() {
+  const { active, loading } = useCategoryActive('roommates')
   const [budget, setBudget] = useState(1000)
   const [activeCity, setActiveCity] = useState('Berlin')
   const [favorites, setFavorites] = useState<number[]>([])
 
   const navigate = useNavigate()
 
+  if (loading) return null
+  if (!active) return <CategoryComingSoon name="Roommates" />
+
   const toggleFav = (id: number) =>
     setFavorites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id])
 
   return (
     <>
+      <Helmet>
+        <title>Find a Roommate in Europe — 1 Euro Pass</title>
+        <meta name="description" content="Connect with verified students looking for roommates across Europe & UK. Find someone you vibe with in Berlin, Amsterdam, Paris and more." />
+        <link rel="canonical" href="https://1europass.com/roommates" />
+      </Helmet>
       <Navbar />
       <main className="roommates">
 

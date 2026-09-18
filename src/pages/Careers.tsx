@@ -1,3 +1,4 @@
+import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -28,6 +29,11 @@ const TYPE_COLORS: Record<string, { bg: string; color: string }> = {
 export default function Careers() {
   return (
     <>
+      <Helmet>
+        <title>Careers — Join the 1 Euro Pass Team</title>
+        <meta name="description" content="Join 1 Euro Pass and help build the go-to platform for international students in Europe & UK. View open roles in engineering, design, growth and more." />
+        <link rel="canonical" href="https://1europass.com/careers" />
+      </Helmet>
       <Navbar />
       <main>
 

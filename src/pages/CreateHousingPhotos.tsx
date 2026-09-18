@@ -1,5 +1,8 @@
-import { useState, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { apiGet, apiPut } from '../api/client'
+import { uploadImagesToCloudinary } from '../api/cloudinaryUpload'
+import { ENDPOINTS } from '../api/endpoints'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -63,13 +66,17 @@ const PHOTO_TIPS = [
 ]
 
 interface PhotoItem {
-  file: File
+  dbId?: number   // set for existing saved photos
+  file?: File     // set for new local-only photos
   url: string
   label: string
 }
 
 export default function CreateHousingPhotos() {
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
+  const backUrl = id ? `/profile/post/housing/edit/${id}` : '/profile/post/housing'
+  const reviewUrl = id ? `/profile/post/housing/edit/${id}/review` : '/profile/post/housing'
   const [photos, setPhotos] = useState<PhotoItem[]>([])
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -82,7 +89,24 @@ export default function CreateHousingPhotos() {
   const MAX_PHOTOS = 10
   const qualityStars = Math.min(5, Math.ceil((photos.length / MAX_PHOTOS) * 5))
   const photoProgress = Math.min(100, Math.round((photos.length / MAX_PHOTOS) * 100))
+  const [uploading, setUploading] = useState(false)
 
+  // Load existing saved photos on mount
+  useEffect(() => {
+    if (!id) return
+    apiGet<{ success: boolean; data: { photos: { id: number; url: string; label: string | null }[] } }>(
+      ENDPOINTS.housing.get(id)
+    ).then(res => {
+      const existing: PhotoItem[] = (res.data.photos ?? []).map(p => ({
+        dbId: p.id,
+        url: p.url,
+        label: p.label ?? 'Other',
+      }))
+      setPhotos(existing)
+    }).catch(() => {})
+  }, [id])
+
+  // Local preview only — no Cloudinary yet
   function addPhotos(files: File[], label: string) {
     const images = files.filter(f => f.type.startsWith('image/'))
     const newItems: PhotoItem[] = images.map(file => ({
@@ -93,9 +117,7 @@ export default function CreateHousingPhotos() {
     setPhotos(prev => [...prev, ...newItems].slice(0, MAX_PHOTOS))
   }
 
-  function handleAddPhotoClick() {
-    setShowLabelModal(true)
-  }
+  function handleAddPhotoClick() { setShowLabelModal(true) }
 
   function handleLabelSelect(label: string) {
     setPendingLabel(label)
@@ -112,23 +134,71 @@ export default function CreateHousingPhotos() {
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
     setDragOver(false)
-    if (!pendingLabel) {
-      setShowLabelModal(true)
-      return
-    }
+    if (!pendingLabel) { setShowLabelModal(true); return }
     addPhotos(Array.from(e.dataTransfer.files), pendingLabel)
     setPendingLabel('')
   }
 
   function removePhoto(idx: number) {
-    setPhotos(prev => {
-      URL.revokeObjectURL(prev[idx].url)
-      return prev.filter((_, i) => i !== idx)
-    })
+    const p = photos[idx]
+    if (!p.dbId && p.url.startsWith('blob:')) URL.revokeObjectURL(p.url)
+    setPhotos(prev => prev.filter((_, i) => i !== idx))
   }
 
   function updateLabel(idx: number, label: string) {
     setPhotos(prev => prev.map((p, i) => i === idx ? { ...p, label } : p))
+  }
+
+  async function uploadPhotos() {
+    if (!id) return
+    const newPhotos = photos.filter(p => p.file)
+    const keepIds = photos.filter(p => p.dbId).map(p => p.dbId!)
+    if (newPhotos.length === 0) return
+
+    // Get auth once, upload all photos in parallel to Cloudinary
+    const uploaded = await uploadImagesToCloudinary(
+      newPhotos.map(p => p.file!),
+      `housing/${id}`,
+    )
+
+    // Send only the Cloudinary URLs to the backend — pure JSON
+    await apiPut(ENDPOINTS.housing.update(id), {
+      photos: uploaded.map((url, i) => ({ url, label: newPhotos[i].label })),
+      keep_ids: keepIds,
+    })
+
+    // Re-fetch to get saved dbIds
+    const refreshed = await apiGet<{ success: boolean; data: { photos: { id: number; url: string; label: string | null }[] } }>(
+      ENDPOINTS.housing.get(id)
+    )
+    setPhotos((refreshed.data.photos ?? []).map(p => ({
+      dbId: p.id,
+      url: p.url,
+      label: p.label ?? 'Other',
+    })))
+  }
+
+  async function handleSaveDraft() {
+    if (!id) return
+    setUploading(true)
+    try {
+      await uploadPhotos()
+    } catch (err) {
+      alert('Failed to save draft: ' + (err instanceof Error ? err.message : String(err)))
+    }
+    finally { setUploading(false) }
+  }
+
+  async function handleSaveAndNext() {
+    if (!id) return
+    setUploading(true)
+    try {
+      await uploadPhotos()
+      navigate(reviewUrl)
+    } catch (err) {
+      alert('Failed to save photos: ' + (err instanceof Error ? err.message : String(err)))
+    }
+    finally { setUploading(false) }
   }
 
   function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -353,7 +423,9 @@ export default function CreateHousingPhotos() {
                     <p className="ph-draft__sub">You can save and continue later.</p>
                   </div>
                 </div>
-                <button type="button" className="ph-draft__btn">Save Draft</button>
+                <button type="button" className="ph-draft__btn" onClick={handleSaveDraft} disabled={uploading}>
+                  {uploading ? 'Saving...' : 'Save Draft'}
+                </button>
               </div>
 
             </div>
@@ -373,13 +445,13 @@ export default function CreateHousingPhotos() {
             </div>
             <div className="cl-footer-bar__right">
               <div className="cl-footer-bar__btns">
-                <button type="button" className="cl-back-btn" onClick={() => navigate('/profile/post/housing')}>
+                <button type="button" className="cl-back-btn" onClick={() => navigate(backUrl)}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15">
                     <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
                   Back
                 </button>
-                <button type="button" className="cl-next-btn" onClick={() => navigate('/profile/post/housing/review')}>
+                <button type="button" className="cl-next-btn" onClick={handleSaveAndNext} disabled={uploading}>
                   Next: Review
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
                     <path d="M5 12h14M12 5l7 7-7 7" />

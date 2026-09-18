@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import CategoryComingSoon from '../components/CategoryComingSoon'
+import { useCategoryActive } from '../hooks/useCategoryActive'
 
 const INTEREST_TABS = [
   { name: 'All',        icon: <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg> },
@@ -40,10 +43,14 @@ const PROFILES = [
 const CITIES = ['All Cities', 'Amsterdam', 'Berlin', 'Barcelona', 'Prague', 'Paris', 'Milan', 'Vienna', 'Athens']
 
 export default function Friends() {
+  const { active, loading } = useCategoryActive('friend')
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('All')
   const [activeCity, setActiveCity] = useState('All Cities')
   const [connections, setConnections] = useState<number[]>([])
+
+  if (loading) return null
+  if (!active) return <CategoryComingSoon name="Friends" />
 
   const toggleConnect = (id: number) =>
     setConnections(c => c.includes(id) ? c.filter(x => x !== id) : [...c, id])
@@ -55,6 +62,11 @@ export default function Friends() {
 
   return (
     <>
+      <Helmet>
+        <title>Make Friends as a Student in Europe — 1 Euro Pass</title>
+        <meta name="description" content="Meet like-minded international students across Europe & UK. Find friends who share your interests — sports, music, gaming and more." />
+        <link rel="canonical" href="https://1europass.com/friends" />
+      </Helmet>
       <Navbar />
       <main className="fr">
 

@@ -1,3 +1,4 @@
+import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -24,6 +25,11 @@ const TAGS = ['All', 'Tips', 'Student Life', 'Community', 'News']
 export default function Blog() {
   return (
     <>
+      <Helmet>
+        <title>Blog — Student Life Tips & Guides — 1 Euro Pass</title>
+        <meta name="description" content="Tips, guides and stories for international students in Europe & UK. Housing advice, city guides, student life hacks and more." />
+        <link rel="canonical" href="https://1europass.com/blog" />
+      </Helmet>
       <Navbar />
       <main>
 

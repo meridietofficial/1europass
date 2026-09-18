@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+Disallow: /profile/
+Disallow: /profile/post/
+
+Sitemap: https://1europass.com/sitemap.xml

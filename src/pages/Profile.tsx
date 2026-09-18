@@ -10,6 +10,8 @@ import type { ApiCountry } from '../api/locations'
 import { COUNTRIES } from '../data/countries'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { apiGet, apiPatch, apiDelete } from '../api/client'
+import { ENDPOINTS } from '../api/endpoints'
 
 type Tab = 'info' | 'student' | 'listings' | 'security'
 
@@ -68,7 +70,14 @@ interface ProfileUser {
 export default function Profile() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<Tab>('info')
+  const VALID_TABS: Tab[] = ['info', 'student', 'listings', 'security']
+  const hashTab = window.location.hash.replace('#', '') as Tab
+  const [activeTab, setActiveTab] = useState<Tab>(VALID_TABS.includes(hashTab) ? hashTab : 'info')
+
+  function switchTab(tab: Tab) {
+    setActiveTab(tab)
+    window.history.replaceState(null, '', `#${tab}`)
+  }
 
   if (!user) return <Navigate to="/" replace />
 
@@ -303,7 +312,7 @@ export default function Profile() {
                     key={t.key}
                     type="button"
                     className={`profile-tab-btn${activeTab === t.key ? ' is-active' : ''}`}
-                    onClick={() => setActiveTab(t.key)}
+                    onClick={() => switchTab(t.key)}
                   >
                     {t.icon}
                     {t.label}
@@ -766,30 +775,211 @@ function StudentProfilePanel() {
 
 /* ─── Listings Panel ───────────────────────────────── */
 
+interface MyListing {
+  id: string
+  listing_type: string
+  status: string
+  category_id: number
+  category_name: string
+  category_slug: string
+  title: string | null
+  city: string | null
+  country: string | null
+  price: number | null
+  created_at: string
+  updated_at: string
+}
+
+const STATUS_LABEL: Record<string, { label: string; color: string }> = {
+  draft:   { label: 'Draft',   color: '#f59e0b' },
+  active:  { label: 'Active',  color: '#16a34a' },
+  paused:  { label: 'Paused',  color: '#6b7280' },
+  removed: { label: 'Removed', color: '#dc2626' },
+  banned:  { label: 'Banned',  color: '#dc2626' },
+}
+
 function ListingsPanel() {
   const navigate = useNavigate()
+  const { showToast } = useToast()
+  const [listings, setListings] = useState<MyListing[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [acting, setActing]     = useState<string | null>(null)
+
+  useEffect(() => {
+    apiGet<{ success: boolean; data: MyListing[] }>(ENDPOINTS.listings.my)
+      .then(res => setListings(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function handleDelete(id: string, title: string) {
+    if (!window.confirm(`Delete "${title || 'this listing'}"? This cannot be undone.`)) return
+    setActing(id)
+    try {
+      await apiDelete(ENDPOINTS.housing.delete(id))
+      setListings(prev => prev.filter(l => l.id !== id))
+      showToast('Listing deleted.', 'success')
+    } catch {
+      showToast('Failed to delete listing.', 'error')
+    } finally {
+      setActing(null)
+    }
+  }
+
+  async function handleToggleStatus(l: MyListing) {
+    const next = l.status === 'active' ? 'paused' : 'active'
+    setActing(l.id)
+    try {
+      await apiPatch(ENDPOINTS.housing.status(l.id), { status: next })
+      setListings(prev => prev.map(x => x.id === l.id ? { ...x, status: next } : x))
+      showToast(`Listing ${next === 'active' ? 'activated' : 'paused'}.`, 'success')
+    } catch {
+      showToast('Failed to update status.', 'error')
+    } finally {
+      setActing(null)
+    }
+  }
 
   return (
     <>
-      <div className="profile-panel__header">
-        <h3 className="profile-panel__title">My Listings</h3>
-        <p className="profile-panel__subtitle">Manage your active posts and listings</p>
-      </div>
-      <div className="profile-empty">
-        <div className="profile-empty__icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="32" height="32">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-          </svg>
+      <div className="profile-panel__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h3 className="profile-panel__title">My Listings</h3>
+          <p className="profile-panel__subtitle">Manage your active posts and listings</p>
         </div>
-        <h4 className="profile-empty__title">No listings yet</h4>
-        <p className="profile-empty__text">
-          You haven't posted anything yet. Start by posting your first listing.
-        </p>
-        <button type="button" className="profile-form__save-btn" onClick={() => navigate('/profile/post')}>
-          Post a Listing
+        <button type="button" className="profile-form__save-btn" style={{ margin: 0 }} onClick={() => navigate('/profile/post')}>
+          + Post a Listing
         </button>
       </div>
+
+      {loading && (
+        <div style={{ padding: '40px 0', textAlign: 'center', color: '#6b7280', fontSize: 14 }}>Loading...</div>
+      )}
+
+      {!loading && listings.length === 0 && (
+        <div className="profile-empty">
+          <div className="profile-empty__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="32" height="32">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+          </div>
+          <h4 className="profile-empty__title">No listings yet</h4>
+          <p className="profile-empty__text">You haven't posted anything yet. Start by posting your first listing.</p>
+        </div>
+      )}
+
+      {!loading && listings.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+          {listings.map(l => {
+            const st = STATUS_LABEL[l.status] ?? { label: l.status, color: '#6b7280' }
+            const busy = acting === l.id
+            const isActive = l.status === 'active'
+            return (
+              <div key={l.id} style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14, background: '#fff' }}>
+
+                {/* Category icon */}
+                <div style={{ width: 42, height: 42, borderRadius: 8, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="1.8" width="20" height="20">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                  </svg>
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {l.title || 'Untitled listing'}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: st.color, background: `${st.color}18`, borderRadius: 20, padding: '2px 8px' }}>{st.label}</span>
+                    <span>·</span>
+                    <span>{l.category_name}</span>
+                    {l.city && <><span>·</span><span>{l.city}{l.country ? `, ${l.country}` : ''}</span></>}
+                    {l.price && <><span>·</span><span>€{Number(l.price).toLocaleString()}</span></>}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>
+                    {new Date(l.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </div>
+                </div>
+
+                {/* Action icons */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+
+                  {/* View */}
+                  <button
+                    type="button"
+                    title="View listing"
+                    disabled={busy}
+                    onClick={() => navigate(`/housing/${l.id}`)}
+                    style={{ width: 34, height: 34, borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </button>
+
+                  {/* Edit */}
+                  <button
+                    type="button"
+                    title="Edit listing"
+                    disabled={busy}
+                    onClick={() => navigate(`/profile/post/housing/edit/${l.id}`)}
+                    style={{ width: 34, height: 34, borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
+
+                  {/* Active / Pause toggle */}
+                  <button
+                    type="button"
+                    title={isActive ? 'Pause listing' : 'Activate listing'}
+                    disabled={busy || l.status === 'banned' || l.status === 'removed'}
+                    onClick={() => handleToggleStatus(l)}
+                    style={{ width: 34, height: 34, borderRadius: 7, border: `1px solid ${isActive ? '#fde68a' : '#bbf7d0'}`, background: isActive ? '#fffbeb' : '#f0fdf4', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? '#d97706' : '#16a34a', opacity: (busy || l.status === 'banned' || l.status === 'removed') ? 0.5 : 1 }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = (busy || l.status === 'banned' || l.status === 'removed') ? '0.5' : '1')}
+                  >
+                    {isActive ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                        <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+
+                  {/* Delete */}
+                  <button
+                    type="button"
+                    title="Delete listing"
+                    disabled={busy}
+                    onClick={() => handleDelete(l.id, l.title ?? '')}
+                    style={{ width: 34, height: 34, borderRadius: 7, border: '1px solid #fecaca', background: '#fff5f5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', opacity: busy ? 0.5 : 1 }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#fee2e2')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#fff5f5')}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                      <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                    </svg>
+                  </button>
+
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </>
   )
 }

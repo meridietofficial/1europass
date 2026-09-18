@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import { createHousingListing, fetchHousingListing, updateHousingListing } from '../api/housing'
+import { useToast } from '../context/ToastContext'
 
 const PROPERTY_TYPES = [
   {
@@ -109,18 +111,28 @@ interface NominatimResult {
   address: {
     road?: string
     house_number?: string
+    quarter?: string
+    suburb?: string
+    borough?: string
     postcode?: string
     city?: string
     town?: string
     village?: string
     municipality?: string
+    county?: string
     state?: string
+    region?: string
+    province?: string
     country?: string
   }
 }
 
 export default function CreateHousingListing() {
   const navigate = useNavigate()
+  const { showToast } = useToast()
+  const { id: editId } = useParams<{ id: string }>()
+  const isEdit = Boolean(editId)
+  const [loadingDraft, setLoadingDraft] = useState(isEdit)
   const [propType, setPropType] = useState('')
   const [city, setCity] = useState('')
   const [address, setAddress] = useState('')
@@ -163,7 +175,27 @@ export default function CreateHousingListing() {
   const [viewingOption, setViewingOption] = useState('')
   const [autoTranslate, setAutoTranslate] = useState(true)
   const [useProfilePhone, setUseProfilePhone] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [shaking, setShaking] = useState<Set<string>>(new Set())
+
+  function triggerShake(fields: string[]) {
+    setShaking(new Set())
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      setShaking(new Set(fields))
+      setTimeout(() => setShaking(new Set()), 2500)
+    }))
+  }
+  const sh = (key: string) => shaking.has(key) ? ' is-shake' : ''
   const fileRef = useRef<HTMLInputElement>(null)
+  const titleRef = useRef<HTMLInputElement>(null)
+  const propTypeRef = useRef<HTMLDivElement>(null)
+  const bedroomsRef = useRef<HTMLDivElement>(null)
+  const locationRef = useRef<HTMLDivElement>(null)
+  const rentRef = useRef<HTMLInputElement>(null)
+  const depositRef = useRef<HTMLInputElement>(null)
+  const sizeRef = useRef<HTMLInputElement>(null)
+  const utilitiesRef = useRef<HTMLDivElement>(null)
+  const descriptionRef = useRef<HTMLTextAreaElement>(null)
 
   // Location search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -193,6 +225,80 @@ export default function CreateHousingListing() {
   }, [])
 
   useEffect(() => {
+    if (!editId) return
+    fetchHousingListing(editId).then(d => {
+      const str = (k: string) => (d[k] as string) ?? ''
+      const num = (k: string) => d[k] != null ? String(d[k]) : ''
+      const bool = (k: string): boolean | null => d[k] == null ? null : Boolean(d[k])
+      setTitle(str('title'))
+      setPropType(str('property_type'))
+      setBedrooms(str('bedrooms'))
+      setDescription(str('description'))
+      setStreetAddress(str('street_address'))
+      setApartment(str('apartment_floor'))
+      setPostalCode(str('postal_code'))
+      setCity(str('city'))
+      setStateRegion(str('state_region'))
+      setCountry(str('country'))
+      setLat(d.latitude != null ? Number(d.latitude) : null)
+      setLng(d.longitude != null ? Number(d.longitude) : null)
+      if (str('full_address')) {
+        setSearchQuery(str('full_address'))
+      } else {
+        const parts = [str('street_address'), str('postal_code'), str('city'), str('state_region'), str('country')].filter(Boolean)
+        if (parts.length) setSearchQuery(parts.join(', '))
+      }
+      setRent(num('rent'))
+      setDeposit(num('deposit'))
+      setSize(num('size_sqm'))
+      setUtilitiesIncluded(bool('utilities_included'))
+      setIncluded({
+        electricity: Boolean(d.included_electricity),
+        water: Boolean(d.included_water),
+        heating: Boolean(d.included_heating),
+        internet: Boolean(d.included_internet),
+        gas: Boolean(d.included_gas),
+        other: Boolean(d.included_other),
+      })
+      setOtherSpec(str('included_other_spec'))
+      setAvailableNow(d.available_now !== 0)
+      setAvailableDate(str('available_date'))
+      setUseProfilePhone(d.use_profile_phone !== 0)
+      setPhoneCode(str('phone_code') || '+31')
+      setPhone(str('phone_number'))
+      setFurnished(str('furnished'))
+      setParking(bool('parking'))
+      setPets(bool('pets'))
+      setSmoking(bool('smoking'))
+      setGender(str('gender'))
+      setElevator(bool('elevator'))
+      setBalcony(bool('balcony'))
+      setLaundry(str('laundry'))
+      setFloor(str('floor'))
+      setNearbyUnivName(str('nearby_university'))
+      setNearbyPlaces({
+        supermarket: Boolean(d.nearby_supermarket),
+        metro: Boolean(d.nearby_metro),
+        bus_stop: Boolean(d.nearby_bus_stop),
+        train_station: Boolean(d.nearby_train_station),
+        university: Boolean(d.nearby_university_flag),
+        hospital: Boolean(d.nearby_hospital),
+        gym: Boolean(d.nearby_gym),
+        cafe: Boolean(d.nearby_cafe),
+        restaurant: Boolean(d.nearby_restaurant),
+      })
+      setOwnerDecl({
+        [OWNER_DECLARATIONS[0]]: Boolean(d.decl_legal_right),
+        [OWNER_DECLARATIONS[1]]: Boolean(d.decl_info_accurate),
+        [OWNER_DECLARATIONS[2]]: Boolean(d.decl_photos_current),
+        [OWNER_DECLARATIONS[3]]: Boolean(d.decl_agreed_terms),
+      })
+    }).catch(() => showToast('Failed to load listing.', 'error'))
+      .finally(() => setLoadingDraft(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId])
+
+  useEffect(() => {
     const timer = setTimeout(() => fetchSuggestions(searchQuery), 400)
     return () => clearTimeout(timer)
   }, [searchQuery, fetchSuggestions])
@@ -209,15 +315,17 @@ export default function CreateHousingListing() {
 
   function selectSuggestion(item: NominatimResult) {
     const a = item.address
-    const road = [a.road, a.house_number].filter(Boolean).join(' ')
+    const road = [a.house_number, a.road].filter(Boolean).join(' ')
     setStreetAddress(road || item.display_name.split(',')[0])
-    setCity(a.city || a.town || a.village || a.municipality || '')
+    const city = a.city || a.town || a.village || a.municipality || a.borough || a.suburb || ''
+    const stateRegion = a.state || a.county || a.region || a.province || city
+    setCity(city)
     setPostalCode(a.postcode || '')
-    setStateRegion(a.state || '')
+    setStateRegion(stateRegion)
     setCountry(a.country || '')
     setLat(parseFloat(item.lat))
     setLng(parseFloat(item.lon))
-    setSearchQuery(item.display_name.split(',').slice(0, 2).join(','))
+    setSearchQuery(item.display_name)
     setShowSuggestions(false)
     setSuggestions([])
   }
@@ -242,6 +350,150 @@ export default function CreateHousingListing() {
   function toggleNearbyPlace(id: string) { setNearbyPlaces(prev => ({ ...prev, [id]: !prev[id] })) }
   function toggleOwnerDecl(k: string) { setOwnerDecl(prev => ({ ...prev, [k]: !prev[k] })) }
 
+  function buildPayload() {
+    return {
+      title: title.trim(),
+      property_type: propType,
+      bedrooms: bedrooms || undefined,
+      description: description || undefined,
+      full_address: searchQuery || undefined,
+      street_address: streetAddress || undefined,
+      apartment_floor: apartment || undefined,
+      postal_code: postalCode || undefined,
+      city: city || undefined,
+      state_region: stateRegion || undefined,
+      country: country || undefined,
+      latitude: lat,
+      longitude: lng,
+      rent: Number(rent),
+      deposit: deposit ? Number(deposit) : null,
+      size_sqm: size ? Number(size) : null,
+      utilities_included: utilitiesIncluded,
+      included_electricity: included.electricity,
+      included_water: included.water,
+      included_heating: included.heating,
+      included_internet: included.internet,
+      included_gas: included.gas,
+      included_other: included.other,
+      included_other_spec: otherSpec || undefined,
+      available_now: availableNow,
+      available_date: !availableNow ? availableDate : undefined,
+      use_profile_phone: useProfilePhone,
+      phone_code: !useProfilePhone ? phoneCode : undefined,
+      phone_number: !useProfilePhone ? phone : undefined,
+      furnished: furnished || undefined,
+      parking,
+      pets,
+      smoking,
+      gender: gender || undefined,
+      elevator,
+      balcony,
+      laundry: laundry || undefined,
+      floor: floor || undefined,
+      nearby_university: nearbyUnivName || undefined,
+      nearby_supermarket: nearbyPlaces.supermarket,
+      nearby_metro: nearbyPlaces.metro,
+      nearby_bus_stop: nearbyPlaces.bus_stop,
+      nearby_train_station: nearbyPlaces.train_station,
+      nearby_university_flag: nearbyPlaces.university,
+      nearby_hospital: nearbyPlaces.hospital,
+      nearby_gym: nearbyPlaces.gym,
+      nearby_cafe: nearbyPlaces.cafe,
+      nearby_restaurant: nearbyPlaces.restaurant,
+      decl_legal_right: ownerDecl[OWNER_DECLARATIONS[0]],
+      decl_info_accurate: ownerDecl[OWNER_DECLARATIONS[1]],
+      decl_photos_current: ownerDecl[OWNER_DECLARATIONS[2]],
+      decl_agreed_terms: ownerDecl[OWNER_DECLARATIONS[3]],
+    }
+  }
+
+  const refMap: Record<string, React.RefObject<HTMLElement | null>> = {
+    title: titleRef,
+    propType: propTypeRef,
+    bedrooms: bedroomsRef,
+    location: locationRef,
+    rent: rentRef,
+    deposit: depositRef,
+    size: sizeRef,
+    utilities: utilitiesRef,
+    description: descriptionRef,
+  }
+
+  function validateDraft() {
+    if (!title.trim()) {
+      triggerShake(['title'])
+      titleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return false
+    }
+    return true
+  }
+
+  function validate() {
+    const empty: string[] = []
+    if (!title.trim()) empty.push('title')
+    if (!propType) empty.push('propType')
+    if (!bedrooms) empty.push('bedrooms')
+    if (!city.trim()) empty.push('location')
+    if (!rent || Number(rent) <= 0) empty.push('rent')
+    if (!deposit || Number(deposit) <= 0) empty.push('deposit')
+    if (!size || Number(size) <= 0) empty.push('size')
+    if (utilitiesIncluded === null) empty.push('utilities')
+    if (!description.trim()) empty.push('description')
+    if (empty.length > 0) {
+      triggerShake(empty)
+      refMap[empty[0]]?.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return false
+    }
+    return true
+  }
+
+  async function handleSaveDraft() {
+    if (!validateDraft()) return
+    setSubmitting(true)
+    try {
+      if (isEdit && editId) {
+        await updateHousingListing(editId, buildPayload())
+        showToast('Listing updated successfully!', 'success')
+      } else {
+        const id = await createHousingListing(buildPayload())
+        sessionStorage.setItem('housing_draft_id', id)
+        showToast('Draft saved successfully!', 'success')
+      }
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Something went wrong. Please try again.', 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleNext() {
+    if (!validate()) return
+    setSubmitting(true)
+    try {
+      if (isEdit && editId) {
+        await updateHousingListing(editId, buildPayload())
+        navigate(`/profile/post/housing/edit/${editId}/photos`)
+      } else {
+        const id = await createHousingListing(buildPayload())
+        navigate(`/profile/post/housing/edit/${id}/photos`)
+      }
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Something went wrong. Please try again.', 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+
+  if (loadingDraft) return (
+    <>
+      <Navbar />
+      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', fontSize: 15 }}>
+        Loading listing...
+      </div>
+      <Footer />
+    </>
+  )
 
   return (
     <>
@@ -318,7 +570,8 @@ export default function CreateHousingListing() {
                 </h3>
                 <p className="cl-card__sub">Give your listing a clear, descriptive title.</p>
                 <input
-                  className="cl-input"
+                  ref={titleRef}
+                  className={`cl-input${sh('title')}`}
                   type="text"
                   placeholder="e.g. Bright private room near university, bills included"
                   maxLength={80}
@@ -337,7 +590,7 @@ export default function CreateHousingListing() {
                   Property Type *
                 </h3>
                 <p className="cl-card__sub">What type of property are you listing?</p>
-                <div className="prop-type-grid">
+                <div ref={propTypeRef} className={`prop-type-grid${sh('propType')}`}>
                   {PROPERTY_TYPES.map((pt) => (
                     <button
                       key={pt.id}
@@ -350,6 +603,12 @@ export default function CreateHousingListing() {
                     </button>
                   ))}
                 </div>
+                {shaking.has('propType') && (
+                  <p className="cl-field-error">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Please select a property type
+                  </p>
+                )}
               </div>
 
               {/* Bedrooms & Bathroom — no card box */}
@@ -361,7 +620,7 @@ export default function CreateHousingListing() {
                   Property Configuration *
                 </h3>
                 <p className="cl-card__sub">Select the size that best describes your property.</p>
-                <div className="prop-config-grid">
+                <div ref={bedroomsRef} className={`prop-config-grid${sh('bedrooms')}`}>
                   {BEDROOM_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
@@ -390,10 +649,16 @@ export default function CreateHousingListing() {
                     <span className="prop-config-btn__sub">Custom</span>
                   </label>
                 </div>
+                {shaking.has('bedrooms') && (
+                  <p className="cl-field-error">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Please select a property configuration
+                  </p>
+                )}
               </div>
 
               {/* Location & Address */}
-              <div style={{ marginBottom: 2, padding: '8px 20px' }}>
+              <div ref={locationRef} style={{ marginBottom: 2, padding: '8px 20px' }}>
                 <h3 className="cl-card__title">
                   <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
@@ -415,13 +680,14 @@ export default function CreateHousingListing() {
                       </svg>
                     )}
                     <input
-                      className="cl-input cl-input--pl"
+                      className={`cl-input cl-input--pl${sh('location')}`}
                       type="text"
                       placeholder="Search for your address, city or area..."
                       value={searchQuery}
                       onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true) }}
                       onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                       autoComplete="off"
+                      style={{ paddingRight: searchQuery ? 38 : 12 }}
                     />
                     {searchQuery && (
                       <button className="cl-input-clear" type="button" onClick={() => {
@@ -574,29 +840,35 @@ export default function CreateHousingListing() {
                     <label className="cl-label">Rent (per month) *</label>
                     <div className="cl-euro-wrap">
                       <span className="cl-euro-sym">€</span>
-                      <input className="cl-input cl-input--euro" type="number" min="0" placeholder="600" value={rent} onChange={(e) => setRent(e.target.value)} />
+                      <input ref={rentRef} className={`cl-input cl-input--euro${sh('rent')}`} type="number" min="0" placeholder="600" value={rent} onChange={(e) => setRent(e.target.value)} />
                     </div>
                   </div>
                   <div className="cl-pricing-field">
                     <label className="cl-label">Deposit *</label>
                     <div className="cl-euro-wrap">
                       <span className="cl-euro-sym">€</span>
-                      <input className="cl-input cl-input--euro" type="number" min="0" placeholder="690" value={deposit} onChange={(e) => setDeposit(e.target.value)} />
+                      <input ref={depositRef} className={`cl-input cl-input--euro${sh('deposit')}`} type="number" min="0" placeholder="690" value={deposit} onChange={(e) => setDeposit(e.target.value)} />
                     </div>
                   </div>
                   <div className="cl-pricing-field">
-                    <label className="cl-label">Size (m²)</label>
+                    <label className="cl-label">Size (m²) *</label>
                     <div className="cl-euro-wrap">
                       <span className="cl-euro-sym" style={{ fontSize: 10, width: 28 }}>m²</span>
-                      <input className="cl-input cl-input--euro" type="number" min="0" placeholder="30" value={size} onChange={(e) => setSize(e.target.value)} />
+                      <input ref={sizeRef} className={`cl-input cl-input--euro${sh('size')}`} type="number" min="0" placeholder="30" value={size} onChange={(e) => setSize(e.target.value)} />
                     </div>
                   </div>
-                  <div className="cl-pricing-field">
-                    <label className="cl-label">Utilities included?</label>
-                    <div className="cl-yn-row">
+                  <div ref={utilitiesRef} className="cl-pricing-field">
+                    <label className="cl-label">Utilities included? *</label>
+                    <div className={`cl-yn-row${sh('utilities')}`}>
                       <button type="button" className={`cl-yn-btn cl-yn-btn--lg${utilitiesIncluded === true ? ' is-active' : ''}`} onClick={() => setUtilitiesIncluded(utilitiesIncluded === true ? null : true)}>Yes</button>
                       <button type="button" className={`cl-yn-btn cl-yn-btn--lg${utilitiesIncluded === false ? ' is-active' : ''}`} onClick={() => setUtilitiesIncluded(utilitiesIncluded === false ? null : false)}>No</button>
                     </div>
+                    {shaking.has('utilities') && (
+                      <p className="cl-field-error">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        Please select Yes or No
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="cl-included-box">
@@ -634,7 +906,8 @@ export default function CreateHousingListing() {
                 </h3>
                 <p className="cl-card__sub">Describe your property in detail.</p>
                 <textarea
-                  className="cl-textarea"
+                  ref={descriptionRef}
+                  className={`cl-textarea${sh('description')}`}
                   rows={5}
                   placeholder="Describe your property. Mention nearby metro, supermarkets, university, furniture, house rules and anything students should know."
                   value={description}
@@ -858,21 +1131,6 @@ export default function CreateHousingListing() {
                 </div>
               </div>
 
-              {/* Save as Draft */}
-              <div className="cl-card cl-card--draft">
-                <div className="cl-draft">
-                  <div>
-                    <h4 className="cl-draft__title">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="16" height="16">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
-                      </svg>
-                      Save as Draft
-                    </h4>
-                    <p className="cl-draft__sub">You can save and continue later.</p>
-                  </div>
-                  <button type="button" className="cl-draft__btn">Save Draft</button>
-                </div>
-              </div>
 
               {/* Auto Translate — commented out for now */}
               {/* <div className="cl-card cl-card--translate">
@@ -908,13 +1166,23 @@ export default function CreateHousingListing() {
               </div>
             </div>
             <div className="cl-footer-bar__right">
-              <button type="button" className="cl-next-btn" onClick={() => navigate('/profile/post/housing/photos')}>
-                Next: Add Photos
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </button>
-              <p className="cl-footer-bar__note">Or skip — payment of €1 to publish</p>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <button type="button" className="cl-next-btn" style={{ background: '#fff', color: '#1a1a1a', borderColor: '#1a1a1a' }} onClick={handleSaveDraft} disabled={submitting}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
+                  </svg>
+                  Save as Draft
+                </button>
+                <button type="button" className="cl-next-btn" onClick={handleNext} disabled={submitting}>
+                  {submitting ? 'Saving...' : 'Save & Next'}
+                  {!submitting && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              <p className="cl-footer-bar__note">Save as draft anytime — payment of €1 to publish</p>
             </div>
           </div>
 

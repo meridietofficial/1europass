@@ -418,7 +418,7 @@ export default function AuthModal({ initialMode, onClose }: Props) {
                     onChange={(e) => setTermsChecked(e.target.checked)}
                   />
                   <label htmlFor="terms">
-                    I agree to the <a href="/terms">Terms</a> & <a href="/privacy">Privacy Policy</a>
+                    I agree to the <a href="/terms-and-conditions">Terms & Conditions</a> & <a href="/privacy-policy">Privacy Policy</a>
                   </label>
                 </div>
 

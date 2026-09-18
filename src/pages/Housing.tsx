@@ -1,7 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import CategoryComingSoon from '../components/CategoryComingSoon'
+import { useCategoryActive } from '../hooks/useCategoryActive'
+import { apiGet } from '../api/client'
+import { ENDPOINTS } from '../api/endpoints'
 
 const CITIES = [
   { name: 'Berlin',    svg: '/city-berlin.svg' },
@@ -14,33 +19,73 @@ const CITIES = [
   { name: 'Vienna',    svg: '/city-vienna.svg' },
 ]
 
-const LISTINGS = [
-  { id: 1, title: 'Bright room in City Center', price: 650, neighborhood: 'Mitte, Berlin', distance: '8 min to metro', tags: ['Furnished', 'Wi-Fi'], available: '1 September', agent: 'Anna', verified: true, gradient: 'linear-gradient(135deg,#a8edea,#fed6e3)' },
-  { id: 2, title: 'Cozy room near TU Berlin',   price: 580, neighborhood: 'Charlottenburg, Berlin', distance: '12 min to TU Berlin', tags: ['Furnished', 'Wi-Fi'], available: '1 September', agent: 'Anna', verified: true, gradient: 'linear-gradient(135deg,#ffecd2,#fcb69f)' },
-  { id: 3, title: 'Modern student studio',       price: 720, neighborhood: 'Friedrichshain, Berlin', distance: '6 min to metro', tags: ['Furnished', 'Wi-Fi', 'Bills included'], available: '1 September', agent: 'Anna', verified: true, gradient: 'linear-gradient(135deg,#c3cfe2,#f5f7fa)' },
-  { id: 4, title: 'Private room near Humboldt…', price: 490, neighborhood: 'Mitte, Berlin', distance: '10 min by university', tags: ['Furnished', 'Wi-Fi'], available: '1 September', agent: 'Anna', verified: false, gradient: 'linear-gradient(135deg,#d4fc79,#96e6a1)' },
-  { id: 5, title: 'Furnished room in Kreuzberg', price: 580, neighborhood: 'Kreuzberg, Berlin', distance: '5 min to metro', tags: ['Furnished', 'Wi-Fi'], available: '1 September', agent: 'Anna', verified: true, gradient: 'linear-gradient(135deg,#f093fb,#f5576c)' },
-  { id: 6, title: 'Sunny room near the metro',   price: 480, neighborhood: 'Neukölln, Berlin', distance: '3 min to metro', tags: ['Furnished', 'Wi-Fi'], available: '1 September', agent: 'Anna', verified: true, gradient: 'linear-gradient(135deg,#4facfe,#00f2fe)' },
+interface HousingListing {
+  id: string
+  title: string
+  property_type: string | null
+  city: string | null
+  country: string | null
+  rent: number | null
+  deposit: number | null
+  size_sqm: number | null
+  utilities_included: string | null
+  included_internet: number
+  furnished: string | null
+  available_now: number
+  available_date: string | null
+  pets: string | null
+  smoking: string | null
+  full_name: string | null
+  cover_photo: string | null
+}
+
+const FALLBACK_GRADIENTS = [
+  'linear-gradient(135deg,#a8edea,#fed6e3)',
+  'linear-gradient(135deg,#ffecd2,#fcb69f)',
+  'linear-gradient(135deg,#c3cfe2,#f5f7fa)',
+  'linear-gradient(135deg,#d4fc79,#96e6a1)',
+  'linear-gradient(135deg,#f093fb,#f5576c)',
+  'linear-gradient(135deg,#4facfe,#00f2fe)',
 ]
 
-const TAG_COLORS: Record<string, string> = {
-  'Furnished':     '#E8F5E9',
-  'Wi-Fi':         '#E3F2FD',
-  'Bills included':'#FFF8E1',
+function formatAvailable(listing: HousingListing): string {
+  if (listing.available_now) return 'Available now'
+  if (listing.available_date) {
+    return `From ${new Date(listing.available_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+  }
+  return ''
 }
 
 export default function Housing() {
+  const { active, loading } = useCategoryActive('housing')
   const [rent, setRent] = useState(1000)
   const [activeCity, setActiveCity] = useState('Berlin')
-  const [favorites, setFavorites] = useState<number[]>([])
+  const [favorites, setFavorites] = useState<string[]>([])
+  const [listings, setListings] = useState<HousingListing[]>([])
+  const [listingsLoading, setListingsLoading] = useState(true)
 
   const navigate = useNavigate()
 
-  const toggleFav = (id: number) =>
+  useEffect(() => {
+    apiGet<{ success: boolean; data: HousingListing[] }>(ENDPOINTS.housing.list)
+      .then(res => setListings(res.data ?? []))
+      .catch(() => {})
+      .finally(() => setListingsLoading(false))
+  }, [])
+
+  const toggleFav = (id: string) =>
     setFavorites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id])
+
+  if (loading) return null
+  if (!active) return <CategoryComingSoon name="Housing" />
 
   return (
     <>
+      <Helmet>
+        <title>Student Housing in Europe — 1 Euro Pass</title>
+        <meta name="description" content="Find verified student rooms, flats and apartments across Europe & UK. Affordable housing near universities in Berlin, Amsterdam, Paris and more." />
+        <link rel="canonical" href="https://1europass.com/housing" />
+      </Helmet>
       <Navbar />
       <main className="housing">
 
@@ -200,7 +245,7 @@ export default function Housing() {
           <div className="housing__results">
             <div className="housing__results-header">
               <h2 className="housing__results-count">
-                <strong>124 rooms</strong> found in {activeCity}
+                <strong>{listingsLoading ? '…' : listings.length} listing{listings.length !== 1 ? 's' : ''}</strong> found
               </h2>
               <div className="housing__results-controls">
                 <select className="housing__sort-select">
@@ -214,37 +259,85 @@ export default function Housing() {
             </div>
             <p className="housing__results-sub">Student-friendly housing near universities, transport &amp; city centers.</p>
 
-            <div className="housing__grid">
-              {LISTINGS.map(l => (
-                <div key={l.id} className="housing__card" onClick={() => navigate(`/housing/${l.id}`)}>
-                  <div className="housing__card-img" style={{ background: l.gradient }}>
-                    {l.verified && <span className="housing__card-verified">✔ VERIFIED</span>}
-                    <button
-                      className={`housing__card-fav${favorites.includes(l.id) ? ' housing__card-fav--active' : ''}`}
-                      onClick={e => { e.stopPropagation(); toggleFav(l.id) }}
-                    >♥</button>
-                  </div>
-                  <div className="housing__card-body">
-                    <div className="housing__card-title">{l.title}</div>
-                    <div className="housing__card-price">€{l.price}<span>/month</span></div>
-                    <div className="housing__card-location">📍 {l.neighborhood} · {l.distance}</div>
-                    <div className="housing__card-tags">
-                      {l.tags.map(tag => (
-                        <span key={tag} className="housing__card-tag" style={{ background: TAG_COLORS[tag] || '#f5f5f5' }}>{tag}</span>
-                      ))}
-                    </div>
-                    <div className="housing__card-avail">Available from {l.available}</div>
-                    <div className="housing__card-footer">
-                      <div className="housing__card-agent">
-                        <div className="housing__card-avatar">{l.agent[0]}</div>
-                        <span>{l.agent}</span>
+            {listingsLoading ? (
+              <p style={{ color: '#888', padding: '40px 0' }}>Loading listings…</p>
+            ) : listings.length === 0 ? (
+              <p style={{ color: '#888', padding: '40px 0' }}>No active listings yet. Be the first to post!</p>
+            ) : (
+              <div className="housing__grid">
+                {listings.map((l, idx) => {
+                  const hostName = l.full_name || 'Host'
+                  const location = [l.city, l.country].filter(Boolean).join(', ')
+                  const tags: string[] = []
+                  if (l.included_internet) tags.push('Wi-Fi')
+                  if (l.utilities_included === 'included') tags.push('Bills included')
+                  const TAG_COLORS: Record<string, string> = {
+                    'Furnished': '#E8F5E9',
+                    'Wi-Fi': '#E3F2FD',
+                    'Bills included': '#FFF8E1',
+                    'Pets OK': '#FFF3E0',
+                    'No smoking': '#FCE4EC',
+                  }
+                  if (l.pets === 'yes') tags.push('Pets OK')
+                  if (l.smoking === 'no') tags.push('No smoking')
+
+                  return (
+                    <div key={l.id} className="housing__card" onClick={() => navigate(`/housing/${l.id}`)}>
+                      <div
+                        className="housing__card-img"
+                        style={l.cover_photo
+                          ? { backgroundImage: `url(${l.cover_photo})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                          : { background: FALLBACK_GRADIENTS[idx % FALLBACK_GRADIENTS.length] }
+                        }
+                      >
+                        {l.property_type && (
+                          <span className="housing__card-type-badge">{l.property_type}</span>
+                        )}
+                        <button
+                          className={`housing__card-fav${favorites.includes(l.id) ? ' housing__card-fav--active' : ''}`}
+                          onClick={e => { e.stopPropagation(); toggleFav(l.id) }}
+                        >♥</button>
                       </div>
-                      <button className="housing__card-details" onClick={e => { e.stopPropagation(); navigate(`/housing/${l.id}`) }}>View details +</button>
+                      <div className="housing__card-body">
+                        <div className="housing__card-title">{l.title}</div>
+                        <div className="housing__card-price-row">
+                          {l.rent && (
+                            <div className="housing__card-price">€{l.rent.toLocaleString()}<span>/month</span></div>
+                          )}
+                          {l.size_sqm && (
+                            <div className="housing__card-size">{l.size_sqm} m²</div>
+                          )}
+                        </div>
+                        {l.furnished !== null && (
+                          <div className={`housing__card-furnished${l.furnished === 'yes' ? ' housing__card-furnished--yes' : ''}`}>
+                            {l.furnished === 'yes' ? '✓ Furnished' : '✗ Not furnished'}
+                          </div>
+                        )}
+                        {location && <div className="housing__card-location">📍 {location}</div>}
+                        {tags.length > 0 && (
+                          <div className="housing__card-tags">
+                            {tags.map(tag => (
+                              <span key={tag} className="housing__card-tag" style={{ background: TAG_COLORS[tag] || '#f5f5f5' }}>{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="housing__card-avail">{formatAvailable(l)}</div>
+                        <div className="housing__card-footer">
+                          <div className="housing__card-agent">
+                            <div className="housing__card-avatar">{hostName[0]?.toUpperCase()}</div>
+                            <div className="housing__card-agent-info">
+                              <span className="housing__card-agent-name">{hostName}</span>
+                              <span className="housing__card-agent-role">Owner</span>
+                            </div>
+                          </div>
+                          <button className="housing__card-details" onClick={e => { e.stopPropagation(); navigate(`/housing/${l.id}`) }}>View details +</button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
         </div>{/* end housing__body */}

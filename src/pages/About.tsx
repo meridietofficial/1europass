@@ -1,3 +1,4 @@
+import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -25,6 +26,11 @@ const TEAM = [
 export default function About() {
   return (
     <>
+      <Helmet>
+        <title>About Us — 1 Euro Pass</title>
+        <meta name="description" content="1 Euro Pass is the student platform built for international students in Europe & UK. Housing, roommates, tutors, buy & sell and more — all in one place." />
+        <link rel="canonical" href="https://1europass.com/about" />
+      </Helmet>
       <Navbar />
       <main>
 

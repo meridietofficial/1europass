@@ -38,6 +38,8 @@ const ForBusinesses = lazy(() => import('./pages/ForBusinesses'))
 const Blog = lazy(() => import('./pages/Blog'))
 const About = lazy(() => import('./pages/About'))
 const Careers = lazy(() => import('./pages/Careers'))
+const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'))
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 
@@ -85,11 +87,14 @@ export default function App() {
       <Route path="/blog" element={<Blog />} />
       <Route path="/about" element={<About />} />
       <Route path="/careers" element={<Careers />} />
+      <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/profile/post" element={<PostListing />} />
       <Route path="/profile/post/housing" element={<CreateHousingListing />} />
-      <Route path="/profile/post/housing/photos" element={<CreateHousingPhotos />} />
-      <Route path="/profile/post/housing/review" element={<CreateHousingReview />} />
+      <Route path="/profile/post/housing/edit/:id" element={<CreateHousingListing />} />
+      <Route path="/profile/post/housing/edit/:id/photos" element={<CreateHousingPhotos />} />
+      <Route path="/profile/post/housing/edit/:id/review" element={<CreateHousingReview />} />
       <Route path="/profile/post/roommates" element={<CreateRoommateListing />} />
       <Route path="/profile/post/roommates/preferences" element={<RoommatePreferences />} />
       <Route path="/profile/post/roommates/review" element={<RoommateReview />} />

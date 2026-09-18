@@ -176,6 +176,10 @@ export default function Footer() {
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
           © 2026 1 Euro Pass — Your Student Life, Simplified.
+          <span style={{ margin: '0 8px', opacity: 0.4 }}>·</span>
+          <a href="/terms-and-conditions" style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3, opacity: 0.7 }}>Terms &amp; Conditions</a>
+          <span style={{ margin: '0 8px', opacity: 0.4 }}>·</span>
+          <a href="/privacy-policy" style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3, opacity: 0.7 }}>Privacy Policy</a>
         </div>
         <img src="/footer-corner-doodle.svg" alt="" className="footer__bar-doodle" />
       </div>

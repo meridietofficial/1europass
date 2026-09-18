@@ -1,3 +1,4 @@
+import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -51,6 +52,11 @@ const PLANS = [
 export default function ForBusinesses() {
   return (
     <>
+      <Helmet>
+        <title>For Businesses — Reach Students Across Europe — 1 Euro Pass</title>
+        <meta name="description" content="Advertise to 1M+ students across Europe & UK. List your business, restaurant, gym or service on 1 Euro Pass and reach international students." />
+        <link rel="canonical" href="https://1europass.com/for-businesses" />
+      </Helmet>
       <Navbar />
       <main>
 

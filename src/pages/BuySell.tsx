@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import CategoryComingSoon from '../components/CategoryComingSoon'
+import { useCategoryActive } from '../hooks/useCategoryActive'
 
 const CATEGORIES = [
   { name: 'Furniture & Home',            img: '/cat-bs-furniture.svg',    bg: '#FFFFFF' },
@@ -38,16 +41,25 @@ const CONDITION_COLOR: Record<string, string> = {
 }
 
 export default function BuySell() {
+  const { active, loading } = useCategoryActive('buy-and-sell')
   const [favorites, setFavorites] = useState<number[]>([])
   const [search, setSearch] = useState('')
   const [showAllCats, setShowAllCats] = useState(false)
   const navigate = useNavigate()
+
+  if (loading) return null
+  if (!active) return <CategoryComingSoon name="Buy & Sell" />
 
   const toggleFav = (id: number) =>
     setFavorites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id])
 
   return (
     <>
+      <Helmet>
+        <title>Buy & Sell for Students in Europe — 1 Euro Pass</title>
+        <meta name="description" content="Buy and sell furniture, electronics, books, bikes and more. Student marketplace across Europe & UK. Post your listing for just €1." />
+        <link rel="canonical" href="https://1europass.com/buy-sell" />
+      </Helmet>
       <Navbar />
       <main className="bs">
 

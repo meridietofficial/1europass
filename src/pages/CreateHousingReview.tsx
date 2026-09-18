@@ -1,24 +1,53 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { apiGet, apiPatch } from '../api/client'
+import { ENDPOINTS } from '../api/endpoints'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
-const MOCK_PHOTOS = [
-  'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80',
-  'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=400&q=80',
-  'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&q=80',
-  'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=400&q=80',
-]
+interface Photo {
+  id: number
+  url: string
+  label: string | null
+  sort_order: number
+}
 
-const DETAIL_TAGS = [
-  'Fully Furnished',
-  'Parking: Yes',
-  'Pets Allowed: No',
-  'Smoking Allowed: No',
-  'Gender: Female Only',
-]
-
-const UTILITY_TAGS = ['Bills Included', 'Balcony', 'Water', 'Heating', 'Internet', 'Gas']
+interface Listing {
+  id: string
+  title: string
+  status: string
+  property_type: string | null
+  bedrooms: number | null
+  description: string | null
+  full_address: string | null
+  city: string | null
+  country: string | null
+  rent: number | null
+  deposit: number | null
+  size_sqm: number | null
+  utilities_included: string | null
+  available_now: number
+  available_date: string | null
+  furnished: string | null
+  parking: string | null
+  pets: string | null
+  smoking: string | null
+  gender: string | null
+  elevator: string | null
+  balcony: string | null
+  laundry: string | null
+  floor: string | null
+  included_electricity: number
+  included_water: number
+  included_heating: number
+  included_internet: number
+  included_gas: number
+  included_other: number
+  included_other_spec: string | null
+  phone_code: string | null
+  phone_number: string | null
+  photos: Photo[]
+}
 
 const HOW_IT_WORKS = [
   'Students will find your listing',
@@ -27,9 +56,112 @@ const HOW_IT_WORKS = [
   'Share contact only after mutual consent',
 ]
 
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 export default function CreateHousingReview() {
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
+  const editUrl = id ? `/profile/post/housing/edit/${id}` : '/profile/post/housing'
+  const photosUrl = id ? `/profile/post/housing/edit/${id}/photos` : '/profile/post/housing'
+
+  const [listing, setListing] = useState<Listing | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [publishing, setPublishing] = useState(false)
   const [autoTranslate, setAutoTranslate] = useState(true)
+
+  useEffect(() => {
+    if (!id) return
+    apiGet<{ success: boolean; data: Listing }>(ENDPOINTS.housing.get(id))
+      .then(res => setListing(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [id])
+
+  async function handlePublish() {
+    if (!id) return
+    setPublishing(true)
+    try {
+      await apiPatch(ENDPOINTS.housing.status(id), { status: 'active' })
+      navigate('/profile#listings')
+    } catch {
+      alert('Failed to publish. Please try again.')
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  function handleSaveDraft() {
+    navigate('/profile#listings')
+  }
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <main className="create-listing-page" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ color: '#888' }}>Loading listing…</p>
+        </main>
+        <Footer />
+      </>
+    )
+  }
+
+  if (!listing) {
+    return (
+      <>
+        <Navbar />
+        <main className="create-listing-page" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ color: '#888' }}>Listing not found.</p>
+        </main>
+        <Footer />
+      </>
+    )
+  }
+
+  const photos = listing.photos ?? []
+  const firstPhoto = photos[0]?.url ?? null
+
+  // Build detail tags from listing fields
+  const detailTags: string[] = []
+  if (listing.furnished) detailTags.push(listing.furnished === 'yes' ? 'Fully Furnished' : listing.furnished === 'partial' ? 'Partially Furnished' : 'Unfurnished')
+  if (listing.parking) detailTags.push(`Parking: ${listing.parking === 'yes' ? 'Yes' : 'No'}`)
+  if (listing.pets) detailTags.push(`Pets: ${listing.pets === 'yes' ? 'Allowed' : 'Not Allowed'}`)
+  if (listing.smoking) detailTags.push(`Smoking: ${listing.smoking === 'yes' ? 'Allowed' : 'Not Allowed'}`)
+  if (listing.gender && listing.gender !== 'any') detailTags.push(`Gender: ${listing.gender === 'male' ? 'Male Only' : 'Female Only'}`)
+  if (listing.elevator) detailTags.push(`Elevator: ${listing.elevator === 'yes' ? 'Yes' : 'No'}`)
+  if (listing.balcony) detailTags.push(`Balcony: ${listing.balcony === 'yes' ? 'Yes' : 'No'}`)
+  if (listing.floor) detailTags.push(`Floor: ${listing.floor}`)
+  if (listing.size_sqm) detailTags.push(`Size: ${listing.size_sqm} m²`)
+  if (listing.bedrooms) detailTags.push(`${listing.bedrooms} Bedroom${listing.bedrooms > 1 ? 's' : ''}`)
+
+  // Build utility tags
+  const utilityTags: string[] = []
+  if (listing.utilities_included === 'included') utilityTags.push('Bills Included')
+  if (listing.included_electricity) utilityTags.push('Electricity')
+  if (listing.included_water) utilityTags.push('Water')
+  if (listing.included_heating) utilityTags.push('Heating')
+  if (listing.included_internet) utilityTags.push('Internet / Wi-Fi')
+  if (listing.included_gas) utilityTags.push('Gas')
+  if (listing.included_other && listing.included_other_spec) utilityTags.push(listing.included_other_spec)
+
+  const location = [listing.city, listing.country].filter(Boolean).join(', ')
+  const propertyLabel = listing.property_type
+    ? listing.property_type.charAt(0).toUpperCase() + listing.property_type.slice(1).replace(/_/g, ' ')
+    : 'Property'
+
+  const availableText = listing.available_now
+    ? 'Available immediately'
+    : listing.available_date
+      ? `From ${formatDate(listing.available_date)}`
+      : null
+
+  const phone = listing.phone_code && listing.phone_number
+    ? `${listing.phone_code} ${listing.phone_number}`
+    : null
 
   return (
     <>
@@ -114,7 +246,7 @@ export default function CreateHousingReview() {
                   </h2>
                   <p className="rv-main-sub">Please check all details before publishing. You can go back to edit if needed.</p>
                 </div>
-                <button className="rv-edit-all-btn" type="button" onClick={() => navigate('/profile/post/housing')}>
+                <button className="rv-edit-all-btn" type="button" onClick={() => navigate(editUrl)}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -133,11 +265,13 @@ export default function CreateHousingReview() {
                 <div className="rv-section__body">
                   <div className="rv-section__row">
                     <h3 className="rv-section__title">Basic Information</h3>
-                    <button className="rv-edit-btn" type="button" onClick={() => navigate('/profile/post/housing')}>Edit</button>
+                    <button className="rv-edit-btn" type="button" onClick={() => navigate(editUrl)}>Edit</button>
                   </div>
-                  <p className="rv-section__line rv-section__line--strong">Entire Apartment • Amsterdam, Netherlands</p>
-                  <p className="rv-section__line">De Pijp, Amsterdam</p>
-                  <p className="rv-section__line">+31 6 123456789</p>
+                  <p className="rv-section__line rv-section__line--strong">
+                    {propertyLabel}{location ? ` • ${location}` : ''}
+                  </p>
+                  {listing.full_address && <p className="rv-section__line">{listing.full_address}</p>}
+                  {phone && <p className="rv-section__line">{phone}</p>}
                 </div>
               </div>
 
@@ -151,11 +285,11 @@ export default function CreateHousingReview() {
                 <div className="rv-section__body">
                   <div className="rv-section__row">
                     <h3 className="rv-section__title">Pricing &amp; Availability</h3>
-                    <button className="rv-edit-btn" type="button" onClick={() => navigate('/profile/post/housing')}>Edit</button>
+                    <button className="rv-edit-btn" type="button" onClick={() => navigate(editUrl)}>Edit</button>
                   </div>
-                  <p className="rv-section__line">Rent (per month): <strong>€650</strong></p>
-                  <p className="rv-section__line">Deposit: <strong>€650</strong></p>
-                  <p className="rv-section__line">Available From: <strong>15 June 2025</strong></p>
+                  {listing.rent && <p className="rv-section__line">Rent (per month): <strong>€{listing.rent.toLocaleString()}</strong></p>}
+                  {listing.deposit && <p className="rv-section__line">Deposit: <strong>€{listing.deposit.toLocaleString()}</strong></p>}
+                  {availableText && <p className="rv-section__line">Available: <strong>{availableText}</strong></p>}
                 </div>
               </div>
 
@@ -168,17 +302,21 @@ export default function CreateHousingReview() {
                 </div>
                 <div className="rv-section__body">
                   <div className="rv-section__row">
-                    <h3 className="rv-section__title">Photos</h3>
-                    <button className="rv-edit-btn" type="button" onClick={() => navigate('/profile/post/housing/photos')}>Edit</button>
+                    <h3 className="rv-section__title">Photos ({photos.length})</h3>
+                    <button className="rv-edit-btn" type="button" onClick={() => navigate(photosUrl)}>Edit</button>
                   </div>
-                  <div className="rv-photos">
-                    {MOCK_PHOTOS.slice(0, 3).map((url, i) => (
-                      <img key={i} src={url} alt="" className="rv-photo-thumb" />
-                    ))}
-                    {MOCK_PHOTOS.length > 3 && (
-                      <div className="rv-photo-more">+{MOCK_PHOTOS.length - 3}</div>
-                    )}
-                  </div>
+                  {photos.length > 0 ? (
+                    <div className="rv-photos">
+                      {photos.slice(0, 3).map(p => (
+                        <img key={p.id} src={p.url} alt={p.label ?? ''} className="rv-photo-thumb" />
+                      ))}
+                      {photos.length > 3 && (
+                        <div className="rv-photo-more">+{photos.length - 3}</div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="rv-section__line" style={{ color: '#999' }}>No photos added yet.</p>
+                  )}
                 </div>
               </div>
 
@@ -193,33 +331,41 @@ export default function CreateHousingReview() {
                 <div className="rv-section__body">
                   <div className="rv-section__row">
                     <h3 className="rv-section__title">Description</h3>
-                    <button className="rv-edit-btn" type="button" onClick={() => navigate('/profile/post/housing')}>Edit</button>
+                    <button className="rv-edit-btn" type="button" onClick={() => navigate(editUrl)}>Edit</button>
                   </div>
-                  <p className="rv-section__line">Bright room in a fully furnished apartment. 5 min walk to metro. All basic amenities included.</p>
+                  <p className="rv-section__line">
+                    {listing.description || <span style={{ color: '#999' }}>No description added.</span>}
+                  </p>
                 </div>
               </div>
 
               {/* Details */}
-              <div className="rv-section">
-                <div className="rv-section__icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="18" height="18">
-                    <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-                    <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-                  </svg>
+              {(detailTags.length > 0 || utilityTags.length > 0) && (
+                <div className="rv-section">
+                  <div className="rv-section__icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="18" height="18">
+                      <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+                      <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+                    </svg>
+                  </div>
+                  <div className="rv-section__body">
+                    <div className="rv-section__row">
+                      <h3 className="rv-section__title">Details</h3>
+                      <button className="rv-edit-btn" type="button" onClick={() => navigate(editUrl)}>Edit</button>
+                    </div>
+                    {detailTags.length > 0 && (
+                      <div className="rv-tags">
+                        {detailTags.map(t => <span key={t} className="rv-tag">{t}</span>)}
+                      </div>
+                    )}
+                    {utilityTags.length > 0 && (
+                      <div className="rv-tags" style={{ marginTop: 6 }}>
+                        {utilityTags.map(t => <span key={t} className="rv-tag rv-tag--util">{t}</span>)}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="rv-section__body">
-                  <div className="rv-section__row">
-                    <h3 className="rv-section__title">Details</h3>
-                    <button className="rv-edit-btn" type="button" onClick={() => navigate('/profile/post/housing')}>Edit</button>
-                  </div>
-                  <div className="rv-tags">
-                    {DETAIL_TAGS.map(t => <span key={t} className="rv-tag">{t}</span>)}
-                  </div>
-                  <div className="rv-tags" style={{ marginTop: 6 }}>
-                    {UTILITY_TAGS.map(t => <span key={t} className="rv-tag rv-tag--util">{t}</span>)}
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Privacy notice */}
               <div className="rv-privacy">
@@ -235,7 +381,6 @@ export default function CreateHousingReview() {
               {/* Bottom action row */}
               <div className="rv-action-row">
 
-                {/* Verify */}
                 <div className="rv-action-card">
                   <div className="rv-action-card__icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="20" height="20">
@@ -249,7 +394,6 @@ export default function CreateHousingReview() {
                   <button className="rv-action-btn" type="button">Verify Now</button>
                 </div>
 
-                {/* Save Draft */}
                 <div className="rv-action-card">
                   <div className="rv-action-card__icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="20" height="20">
@@ -260,10 +404,9 @@ export default function CreateHousingReview() {
                     <p className="rv-action-card__title">Save as Draft</p>
                     <p className="rv-action-card__sub">You can save and continue later.</p>
                   </div>
-                  <button className="rv-action-btn" type="button">Save Draft</button>
+                  <button className="rv-action-btn" type="button" onClick={handleSaveDraft}>Save Draft</button>
                 </div>
 
-                {/* Auto Translate */}
                 <div className="rv-action-card">
                   <div className="rv-action-card__icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="20" height="20">
@@ -287,7 +430,7 @@ export default function CreateHousingReview() {
             {/* ── Right column ── */}
             <div className="rv-right">
 
-              {/* Listing Preview */}
+              {/* Listing Preview card */}
               <div className="rv-preview">
                 <div className="rv-preview__header">
                   <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="15" height="15">
@@ -297,7 +440,15 @@ export default function CreateHousingReview() {
                 </div>
                 <div className="rv-preview__card">
                   <div className="rv-preview__img-wrap">
-                    <img src={MOCK_PHOTOS[0]} alt="Listing" className="rv-preview__img" />
+                    {firstPhoto ? (
+                      <img src={firstPhoto} alt="Listing" className="rv-preview__img" />
+                    ) : (
+                      <div className="rv-preview__img" style={{ background: '#e8f5e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.5" width="40" height="40">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
+                        </svg>
+                      </div>
+                    )}
                     <button className="rv-preview__heart" type="button">
                       <svg viewBox="0 0 24 24" fill="none" stroke="#e05" strokeWidth="2" width="14" height="14">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
@@ -305,28 +456,22 @@ export default function CreateHousingReview() {
                     </button>
                   </div>
                   <div className="rv-preview__info">
-                    <p className="rv-preview__name">Room in Shared Apartment</p>
-                    <p className="rv-preview__price">€650<span>/month</span></p>
-                    <div className="rv-preview__loc">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="12" height="12">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
-                      </svg>
-                      De Pijp, Amsterdam
-                    </div>
-                    <div className="rv-preview__tags">
-                      <span className="rv-preview__tag">Furnished</span>
-                      <span className="rv-preview__tag">Bills</span>
-                      <span className="rv-preview__tag">Wi-Fi Included</span>
-                    </div>
-                    <p className="rv-preview__avail">Available from 15 June</p>
-                    <div className="rv-preview__host">
-                      <div className="rv-preview__avatar">A</div>
-                      <div>
-                        <p className="rv-preview__host-name">Anna</p>
-                        <p className="rv-preview__host-role">Verified Host</p>
+                    <p className="rv-preview__name">{listing.title}</p>
+                    {listing.rent && <p className="rv-preview__price">€{listing.rent.toLocaleString()}<span>/month</span></p>}
+                    {location && (
+                      <div className="rv-preview__loc">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="12" height="12">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                        </svg>
+                        {location}
                       </div>
-                      <a href="#" className="rv-preview__details">View details →</a>
+                    )}
+                    <div className="rv-preview__tags">
+                      {listing.furnished === 'yes' && <span className="rv-preview__tag">Furnished</span>}
+                      {listing.utilities_included === 'included' && <span className="rv-preview__tag">Bills</span>}
+                      {listing.included_internet ? <span className="rv-preview__tag">Wi-Fi</span> : null}
                     </div>
+                    {availableText && <p className="rv-preview__avail">{availableText}</p>}
                   </div>
                 </div>
               </div>
@@ -373,17 +518,19 @@ export default function CreateHousingReview() {
             </div>
             <div className="cl-footer-bar__right">
               <div className="cl-footer-bar__btns">
-                <button type="button" className="cl-back-btn" onClick={() => navigate('/profile/post/housing/photos')}>
+                <button type="button" className="cl-back-btn" onClick={() => navigate(photosUrl)}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15">
                     <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
                   Back
                 </button>
-                <button type="button" className="rv-publish-btn">
-                  Publish Listing
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
-                  </svg>
+                <button type="button" className="rv-publish-btn" onClick={handlePublish} disabled={publishing}>
+                  {publishing ? 'Publishing…' : 'Publish Listing'}
+                  {!publishing && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  )}
                 </button>
               </div>
               <p className="cl-footer-bar__note">One-time payment of €1 to publish</p>
