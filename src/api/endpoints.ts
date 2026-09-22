@@ -11,11 +11,22 @@ export const ENDPOINTS = {
     cities: '/api/v1/locations/cities',
   },
   user: {
-    me: '/api/user/me',
-    update: '/api/user/me',
+    me: '/api/v1/user/me',
+    update: '/api/v1/user/me',
+    studentProfile: '/api/v1/user/me/student-profile',
   },
   categories: {
     list: '/api/v1/categories',
+  },
+  marketplace: {
+    categories: '/api/v1/marketplace/categories',
+    list: '/api/v1/marketplace/listings/list',
+    create: '/api/v1/marketplace/listings',
+    get: (id: string) => `/api/v1/marketplace/listings/${id}`,
+    view: (id: string) => `/api/v1/marketplace/listings/${id}/view`,
+    update: (id: string) => `/api/v1/marketplace/listings/${id}`,
+    status: (id: string) => `/api/v1/marketplace/listings/${id}/status`,
+    delete: (id: string) => `/api/v1/marketplace/listings/${id}`,
   },
   housing: {
     list: '/api/v1/housing/list',
@@ -26,8 +37,28 @@ export const ENDPOINTS = {
     status: (id: string) => `/api/v1/housing/${id}/status`,
     delete: (id: string) => `/api/v1/housing/${id}`,
   },
+  roommates: {
+    list: '/api/v1/roommates/list',
+    create: '/api/v1/roommates',
+    get: (id: string) => `/api/v1/roommates/${id}`,
+    view: (id: string) => `/api/v1/roommates/${id}/view`,
+    update: (id: string) => `/api/v1/roommates/${id}`,
+    status: (id: string) => `/api/v1/roommates/${id}/status`,
+    delete: (id: string) => `/api/v1/roommates/${id}`,
+  },
+  teachAndCoach: {
+    categories: '/api/v1/teach-and-coach/categories',
+    list:       '/api/v1/teach-and-coach/listings/list',
+    view:       (id: string) => `/api/v1/teach-and-coach/listings/${id}/view`,
+    create:     '/api/v1/teach-and-coach/listings',
+    get:        (id: string) => `/api/v1/teach-and-coach/listings/${id}`,
+    update:     (id: string) => `/api/v1/teach-and-coach/listings/${id}`,
+    status:     (id: string) => `/api/v1/teach-and-coach/listings/${id}/status`,
+    delete:     (id: string) => `/api/v1/teach-and-coach/listings/${id}`,
+  },
   listings: {
     my: '/api/v1/listings/my',
   },
+  upload: '/api/v1/upload',
   cloudinaryAuth: '/api/v1/cloudinary-auth',
 } as const

@@ -1,18 +1,10 @@
-import { useState, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
-
-const PHOTO_LABELS = [
-  { label: 'Front View', icon: '📷' },
-  { label: 'Back View', icon: '🔄' },
-  { label: 'Side View', icon: '↔️' },
-  { label: 'Detail Shot', icon: '🔍' },
-  { label: 'Box / Packaging', icon: '📦' },
-  { label: 'Accessories', icon: '🧩' },
-  { label: 'Receipt / Proof', icon: '🧾' },
-  { label: 'Other', icon: '🖼️' },
-]
+import { apiGet, apiPut } from '../api/client'
+import { uploadImagesToCloudinary } from '../api/cloudinaryUpload'
+import { ENDPOINTS } from '../api/endpoints'
 
 const PHOTO_TIPS = [
   {
@@ -61,19 +53,21 @@ const PHOTO_TIPS = [
 ]
 
 interface PhotoItem {
-  file: File
+  dbId?: number
+  file?: File
   url: string
-  label: string
 }
 
 export default function BuySellPhotos() {
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
+  const { pathname } = useLocation()
+  const isEdit = pathname.includes('/edit/')
   const [photos, setPhotos] = useState<PhotoItem[]>([])
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [videoDragOver, setVideoDragOver] = useState(false)
-  const [showLabelModal, setShowLabelModal] = useState(false)
-  const [pendingLabel, setPendingLabel] = useState('')
+  const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
 
@@ -81,38 +75,68 @@ export default function BuySellPhotos() {
   const qualityStars = Math.min(5, Math.ceil((photos.length / MAX_PHOTOS) * 5))
   const photoProgress = Math.min(100, Math.round((photos.length / MAX_PHOTOS) * 100))
 
-  function addPhotos(files: File[], label: string) {
+  useEffect(() => {
+    if (!id) return
+    apiGet<{ data: { photos: { id: number; url: string }[] } }>(ENDPOINTS.marketplace.get(id))
+      .then(res => setPhotos((res.data.photos ?? []).map(p => ({ dbId: p.id, url: p.url }))))
+      .catch(() => {})
+  }, [id])
+
+  function addPhotos(files: File[]) {
     const images = files.filter(f => f.type.startsWith('image/'))
-    const newItems: PhotoItem[] = images.map(file => ({ file, url: URL.createObjectURL(file), label }))
+    const newItems: PhotoItem[] = images.map(file => ({ file, url: URL.createObjectURL(file) }))
     setPhotos(prev => [...prev, ...newItems].slice(0, MAX_PHOTOS))
   }
 
-  function handleLabelSelect(label: string) {
-    setPendingLabel(label)
-    setShowLabelModal(false)
-    fileRef.current?.click()
-  }
-
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    addPhotos(Array.from(e.target.files ?? []), pendingLabel || 'Other')
+    addPhotos(Array.from(e.target.files ?? []))
     e.target.value = ''
-    setPendingLabel('')
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
     setDragOver(false)
-    if (!pendingLabel) { setShowLabelModal(true); return }
-    addPhotos(Array.from(e.dataTransfer.files), pendingLabel)
-    setPendingLabel('')
+    addPhotos(Array.from(e.dataTransfer.files))
   }
 
   function removePhoto(idx: number) {
-    setPhotos(prev => { URL.revokeObjectURL(prev[idx].url); return prev.filter((_, i) => i !== idx) })
+    const p = photos[idx]
+    if (!p.dbId && p.url.startsWith('blob:')) URL.revokeObjectURL(p.url)
+    setPhotos(prev => prev.filter((_, i) => i !== idx))
   }
 
-  function updateLabel(idx: number, label: string) {
-    setPhotos(prev => prev.map((p, i) => i === idx ? { ...p, label } : p))
+  async function uploadPhotos() {
+    if (!id) return
+    const newPhotos = photos.filter(p => p.file)
+    const keepIds = photos.filter(p => p.dbId).map(p => p.dbId!)
+    if (newPhotos.length === 0 && keepIds.length === photos.length) return
+    const uploaded = await uploadImagesToCloudinary(newPhotos.map(p => p.file!), `marketplace/${id}`)
+    await apiPut(ENDPOINTS.marketplace.update(id), {
+      photos: uploaded.map(url => ({ url })),
+      keep_ids: keepIds,
+    })
+    const refreshed = await apiGet<{ data: { photos: { id: number; url: string }[] } }>(ENDPOINTS.marketplace.get(id))
+    setPhotos((refreshed.data.photos ?? []).map(p => ({ dbId: p.id, url: p.url })))
+  }
+
+  async function handleSaveDraft() {
+    if (!id) return
+    setUploading(true)
+    try { await uploadPhotos() } catch (err) { alert('Failed to save: ' + (err instanceof Error ? err.message : String(err))) }
+    finally { setUploading(false) }
+  }
+
+  async function handleNext() {
+    if (!id) return
+    setUploading(true)
+    try {
+      await uploadPhotos()
+      navigate(isEdit ? `/profile/post/buy-sell/edit/${id}/review` : `/profile/post/buy-sell/${id}/review`)
+    } catch (err) {
+      alert('Failed to save photos: ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setUploading(false)
+    }
   }
 
   function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -140,11 +164,15 @@ export default function BuySellPhotos() {
                 <Link to="/">Home</Link><span className="cl-breadcrumb__sep">/</span>
                 <Link to="/profile">My Profile</Link><span className="cl-breadcrumb__sep">/</span>
                 <Link to="/profile/post">Post a Listing</Link><span className="cl-breadcrumb__sep">/</span>
-                <Link to="/profile/post/buy-sell">Buy &amp; Sell</Link><span className="cl-breadcrumb__sep">/</span>
+                {isEdit
+                  ? <><Link to="/profile#listings">My Listings</Link><span className="cl-breadcrumb__sep">/</span><Link to={`/profile/post/buy-sell/edit/${id}`}>Edit</Link></>
+                  : <Link to="/profile/post/buy-sell">Buy &amp; Sell</Link>
+                }
+                <span className="cl-breadcrumb__sep">/</span>
                 <span>Photos</span>
               </nav>
-              <h1 className="cl-hero__title">Post Your Item</h1>
-              <p className="cl-hero__sub">Sell it in seconds. Reach students across Europe.</p>
+              <h1 className="cl-hero__title">{isEdit ? 'Edit your listing' : 'Post Your Item'}</h1>
+              <p className="cl-hero__sub">{isEdit ? 'Update your photos below.' : 'Sell it in seconds. Reach students across Europe.'}</p>
             </div>
             <div className="cl-steps">
               <div className="cl-step">
@@ -236,19 +264,12 @@ export default function BuySellPhotos() {
             <div className="ph-grid">
               {photos.map((p, idx) => (
                 <div key={idx} className="ph-photo">
-                  <img src={p.url} alt={p.label} className="ph-photo__img" />
+                  <img src={p.url} alt="" className="ph-photo__img" />
                   <button className="ph-photo__remove" type="button" onClick={() => removePhoto(idx)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13">
                       <path d="M18 6 6 18M6 6l12 12" />
                     </svg>
                   </button>
-                  <select
-                    className="ph-photo__label"
-                    value={p.label}
-                    onChange={e => updateLabel(idx, e.target.value)}
-                  >
-                    {PHOTO_LABELS.map(l => <option key={l.label} value={l.label}>{l.label}</option>)}
-                  </select>
                 </div>
               ))}
 
@@ -259,7 +280,7 @@ export default function BuySellPhotos() {
                   onDragOver={e => { e.preventDefault(); setDragOver(true) }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
-                  onClick={() => setShowLabelModal(true)}
+                  onClick={() => fileRef.current?.click()}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="1.5" width="36" height="36">
                     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -326,19 +347,6 @@ export default function BuySellPhotos() {
                 </div>
               </div>
 
-              {/* Save as Draft */}
-              <div className="ph-draft">
-                <div className="ph-draft__info">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="20" height="20">
-                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                  </svg>
-                  <div>
-                    <p className="ph-draft__title">Save as Draft</p>
-                    <p className="ph-draft__sub">You can save and continue later.</p>
-                  </div>
-                </div>
-                <button type="button" className="ph-draft__btn">Save Draft</button>
-              </div>
 
             </div>
           </div>{/* end ph-body */}
@@ -439,17 +447,21 @@ export default function BuySellPhotos() {
             </div>
             <div className="cl-footer-bar__right">
               <div className="cl-footer-bar__btns">
-                <button type="button" className="cl-back-btn" onClick={() => navigate('/profile/post/buy-sell')}>
+                <button type="button" className="cl-back-btn" onClick={() => navigate(isEdit ? `/profile/post/buy-sell/edit/${id}` : '/profile/post/buy-sell')} disabled={uploading}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15">
                     <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
                   Back
                 </button>
-                <button type="button" className="cl-next-btn" onClick={() => navigate('/profile/post/buy-sell/review')}>
-                  Next: Review
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
+                <button type="button" className="cl-next-btn" style={{ background: '#fff', color: '#1a1a1a', borderColor: '#1a1a1a' }} onClick={handleSaveDraft} disabled={uploading}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
                   </svg>
+                  Save as Draft
+                </button>
+                <button type="button" className="cl-next-btn" onClick={handleNext} disabled={uploading}>
+                  {uploading ? 'Saving...' : 'Next: Review'}
+                  {!uploading && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17"><path d="M5 12h14M12 5l7 7-7 7" /></svg>}
                 </button>
               </div>
               <p className="cl-footer-bar__note">One-time payment of €1 to publish</p>
@@ -459,42 +471,6 @@ export default function BuySellPhotos() {
         </div>
 
       </main>
-
-      {/* Photo label modal */}
-      {showLabelModal && (
-        <div className="ph-modal-overlay" onClick={() => setShowLabelModal(false)}>
-          <div className="ph-modal" onClick={e => e.stopPropagation()}>
-            <div className="ph-modal__header">
-              <h3 className="ph-modal__title">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="20" height="20">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-                What part of the item is this?
-              </h3>
-              <p className="ph-modal__sub">Select the view to label your photo correctly.</p>
-              <button className="ph-modal__close" type="button" onClick={() => setShowLabelModal(false)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="ph-modal__grid">
-              {PHOTO_LABELS.map(item => (
-                <button
-                  key={item.label}
-                  type="button"
-                  className="ph-modal__option"
-                  onClick={() => handleLabelSelect(item.label)}
-                >
-                  <span className="ph-modal__option-icon">{item.icon}</span>
-                  <span className="ph-modal__option-label">{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       <Footer />
     </>

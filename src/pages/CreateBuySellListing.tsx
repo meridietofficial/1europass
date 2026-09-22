@@ -1,18 +1,23 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import { apiGet, apiPost, apiPut } from '../api/client'
+import { ENDPOINTS } from '../api/endpoints'
+import { useToast } from '../context/ToastContext'
 
-const CATEGORIES: Record<string, string[]> = {
-  'Electronics': ['Phones', 'Laptops & Computers', 'Tablets', 'Headphones & Audio', 'Gaming', 'Cameras & Photography', 'TVs & Monitors', 'Accessories', 'Other Electronics'],
-  'Books & Study': ['Textbooks', 'Study Notes', 'Stationery', 'Calculators', 'Other Study Items'],
-  'Clothing & Fashion': ["Men's Clothing", "Women's Clothing", 'Shoes', 'Bags & Backpacks', 'Accessories', 'Other Fashion'],
-  'Furniture': ['Desks & Chairs', 'Beds & Mattresses', 'Storage & Shelving', 'Sofas & Seating', 'Lighting', 'Other Furniture'],
-  'Sports & Fitness': ['Bikes', 'Gym Equipment', 'Sports Gear', 'Outdoor & Camping', 'Other Sports'],
-  'Kitchen & Home': ['Appliances', 'Kitchenware', 'Bedding & Linens', 'Home Decor', 'Cleaning Supplies', 'Other Home'],
-  'Music & Arts': ['Instruments', 'Art & Craft Supplies', 'Music Accessories', 'Other'],
-  'Bikes & Transport': ['Bikes', 'Scooters & Skateboards', 'Accessories', 'Other Transport'],
-  'Other': ['Other Items'],
+interface Subcategory {
+  id: number
+  name: string
+  slug: string
+}
+
+interface MarketplaceCategory {
+  id: number
+  name: string
+  slug: string
+  icon: string | null
+  subcategories: Subcategory[]
 }
 
 const CONDITIONS = [
@@ -30,7 +35,10 @@ interface NominatimResult {
 
 export default function CreateBuySellListing() {
   const navigate = useNavigate()
+  const { showToast } = useToast()
+  const { id: editId } = useParams<{ id?: string }>()
 
+  const [categories, setCategories] = useState<MarketplaceCategory[]>([])
   const [category, setCategory] = useState('')
   const [subcategory, setSubcategory] = useState('')
   const [title, setTitle] = useState('')
@@ -41,10 +49,46 @@ export default function CreateBuySellListing() {
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const isEdit = Boolean(editId)
+  const [loadingEdit, setLoadingEdit] = useState(isEdit)
+  const [draftId, setDraftId] = useState<string | null>(
+    () => editId ?? sessionStorage.getItem('marketplace_draft_id')
+  )
 
   const searchRef = useRef<HTMLDivElement>(null)
 
-  const subcategories = category ? CATEGORIES[category] ?? [] : []
+  useEffect(() => {
+    apiGet<{ data: MarketplaceCategory[] }>(ENDPOINTS.marketplace.categories)
+      .then(res => setCategories(res.data))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!editId || categories.length === 0) return
+    setLoadingEdit(true)
+    apiGet<{ data: { title: string; description: string | null; condition: string; price: number; city: string | null; category_id: number; subcategory_id: number | null } }>(ENDPOINTS.marketplace.get(editId))
+      .then(res => {
+        const d = res.data
+        setTitle(d.title ?? '')
+        setDescription(d.description ?? '')
+        setCondition(d.condition ?? '')
+        setPrice(d.price ? String(d.price) : '')
+        setLocation(d.city ?? '')
+        const cat = categories.find(c => c.id === d.category_id)
+        if (cat) {
+          setCategory(cat.slug)
+          const sub = cat.subcategories.find(s => s.id === d.subcategory_id)
+          if (sub) setSubcategory(sub.slug)
+        }
+        sessionStorage.setItem('marketplace_draft_id', editId)
+      })
+      .catch(() => {})
+      .finally(() => setLoadingEdit(false))
+  }, [editId, categories])
+
+  const selectedCategory = categories.find(c => c.slug === category)
+  const subcategories = selectedCategory?.subcategories ?? []
 
   const fetchSuggestions = useCallback(async (q: string) => {
     if (q.trim().length < 3) { setSuggestions([]); return }
@@ -82,6 +126,75 @@ export default function CreateBuySellListing() {
     setSuggestions([])
   }
 
+  function buildPayload() {
+    const cat = categories.find(c => c.slug === category)
+    const sub = cat?.subcategories.find(s => s.slug === subcategory)
+    return {
+      category_id: cat?.id ?? null,
+      subcategory_id: sub?.id ?? null,
+      title: title.trim(),
+      description: description.trim() || null,
+      condition,
+      price: price ? Number(price) : 0,
+      is_free: false,
+      city: location.trim() || null,
+    }
+  }
+
+  async function handleSaveDraft() {
+    if (!title.trim()) { showToast('Title is required to save a draft', 'error'); return }
+    setSubmitting(true)
+    try {
+      if (draftId) {
+        await apiPut(ENDPOINTS.marketplace.update(draftId), buildPayload())
+        showToast('Draft updated successfully!', 'success')
+      } else {
+        const res = await apiPost<{ data: { id: string } }>(ENDPOINTS.marketplace.create, buildPayload())
+        sessionStorage.setItem('marketplace_draft_id', res.data.id)
+        setDraftId(res.data.id)
+        showToast('Draft saved successfully!', 'success')
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Something went wrong', 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleNext() {
+    if (!title.trim()) { showToast('Title is required', 'error'); return }
+    if (!category) { showToast('Please select a category', 'error'); return }
+    if (!condition) { showToast('Please select a condition', 'error'); return }
+    if (!price) { showToast('Price is required', 'error'); return }
+    setSubmitting(true)
+    try {
+      let id = draftId
+      if (id) {
+        await apiPut(ENDPOINTS.marketplace.update(id), buildPayload())
+      } else {
+        const res = await apiPost<{ data: { id: string } }>(ENDPOINTS.marketplace.create, buildPayload())
+        id = res.data.id
+        sessionStorage.setItem('marketplace_draft_id', id)
+        setDraftId(id)
+      }
+      navigate(isEdit ? `/profile/post/buy-sell/edit/${id}/photos` : `/profile/post/buy-sell/${id}/photos`)
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Something went wrong', 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loadingEdit) return (
+    <>
+      <Navbar />
+      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', fontSize: 15 }}>
+        Loading listing...
+      </div>
+      <Footer />
+    </>
+  )
+
   return (
     <>
       <Navbar />
@@ -94,10 +207,11 @@ export default function CreateBuySellListing() {
                 <Link to="/">Home</Link><span className="cl-breadcrumb__sep">/</span>
                 <Link to="/profile">My Profile</Link><span className="cl-breadcrumb__sep">/</span>
                 <Link to="/profile/post">Post a Listing</Link><span className="cl-breadcrumb__sep">/</span>
-                <span>Buy &amp; Sell</span>
+                {isEdit ? <Link to="/profile#listings">My Listings</Link> : <span>Buy &amp; Sell</span>}
+                {isEdit && <><span className="cl-breadcrumb__sep">/</span><span>Edit</span></>}
               </nav>
-              <h1 className="cl-hero__title">Post Your Item</h1>
-              <p className="cl-hero__sub">Sell it in seconds. Reach students across Europe.</p>
+              <h1 className="cl-hero__title">{isEdit ? 'Edit your listing' : 'Post Your Item'}</h1>
+              <p className="cl-hero__sub">{isEdit ? 'Update your item details below.' : 'Sell it in seconds. Reach students across Europe.'}</p>
             </div>
             <div className="cl-steps">
               <div className="cl-step is-active">
@@ -188,7 +302,9 @@ export default function CreateBuySellListing() {
                           onChange={e => { setCategory(e.target.value); setSubcategory('') }}
                         >
                           <option value="">Select a category</option>
-                          {Object.keys(CATEGORIES).map(c => <option key={c} value={c}>{c}</option>)}
+                          {categories.map(c => (
+                            <option key={c.id} value={c.slug}>{c.name}</option>
+                          ))}
                         </select>
                         <svg className="crp-select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
                       </div>
@@ -208,7 +324,7 @@ export default function CreateBuySellListing() {
                           disabled={!category}
                         >
                           <option value="">Select a subcategory</option>
-                          {subcategories.map(s => <option key={s} value={s}>{s}</option>)}
+                          {subcategories.map(s => <option key={s.id} value={s.slug}>{s.name}</option>)}
                         </select>
                         <svg className="crp-select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
                       </div>
@@ -455,10 +571,18 @@ export default function CreateBuySellListing() {
               </div>
             </div>
             <div className="cl-footer-bar__right">
-              <button type="button" className="cl-next-btn" onClick={() => navigate('/profile/post/buy-sell/photos')}>
-                Next: Photos
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-              </button>
+              <div className="cl-footer-bar__btns">
+                <button type="button" className="cl-next-btn" style={{ background: '#fff', color: '#1a1a1a', borderColor: '#1a1a1a' }} onClick={handleSaveDraft} disabled={submitting}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
+                  </svg>
+                  Save as Draft
+                </button>
+                <button type="button" className="cl-next-btn" onClick={handleNext} disabled={submitting}>
+                  {submitting ? 'Saving...' : 'Next: Photos'}
+                  {!submitting && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17"><path d="M5 12h14M12 5l7 7-7 7" /></svg>}
+                </button>
+              </div>
               <p className="cl-footer-bar__note">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" style={{ display: 'inline', marginRight: 3 }}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                 One-time payment of €1 to publish

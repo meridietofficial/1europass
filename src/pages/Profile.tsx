@@ -10,17 +10,11 @@ import type { ApiCountry } from '../api/locations'
 import { COUNTRIES } from '../data/countries'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { apiGet, apiPatch, apiDelete } from '../api/client'
+import { apiGet, apiPatch, apiPut, apiDelete, apiPostForm } from '../api/client'
 import { ENDPOINTS } from '../api/endpoints'
 
 type Tab = 'info' | 'student' | 'listings' | 'security'
 
-const COURSES = [
-  'Computer Science', 'Business Administration', 'Law', 'Medicine', 'Engineering',
-  'Economics', 'Psychology', 'Architecture', 'Data Science', 'Design',
-  'International Relations', 'Political Science', 'Sociology', 'Marketing',
-  'Finance', 'Biotechnology', 'Pharmacy', 'Education', 'Linguistics', 'Other',
-]
 const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', 'Masters Year 1', 'Masters Year 2', 'PhD', 'Exchange Student']
 const NATIONALITIES = [
   'Afghan','Albanian','Algerian','American','Argentine','Australian','Austrian','Belgian',
@@ -63,13 +57,20 @@ interface ProfileUser {
   city: string | null
   dob: string | null
   language: string | null
+  user_type: 'student' | 'other'
+  about_me: string | null
+  nationality: string | null
   role: string
   created_at: string
 }
 
 export default function Profile() {
-  const { user } = useAuth()
+  const { user, login: authLogin, token } = useAuth()
+  const { showToast } = useToast()
   const navigate = useNavigate()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const VALID_TABS: Tab[] = ['info', 'student', 'listings', 'security']
   const hashTab = window.location.hash.replace('#', '') as Tab
   const [activeTab, setActiveTab] = useState<Tab>(VALID_TABS.includes(hashTab) ? hashTab : 'info')
@@ -77,6 +78,38 @@ export default function Profile() {
   function switchTab(tab: Tab) {
     setActiveTab(tab)
     window.history.replaceState(null, '', `#${tab}`)
+  }
+
+  useEffect(() => {
+    if (!previewOpen) return
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setPreviewOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [previewOpen])
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingPhoto(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const upload = await apiPostForm<{ success: boolean; data: { url: string } }>(
+        `${ENDPOINTS.upload}?folder=profiles`,
+        formData,
+      )
+      const updated = await apiPatch<{ success: boolean; data: ProfileUser }>(
+        ENDPOINTS.user.update,
+        { profile_picture: upload.data.url },
+      )
+      authLogin(updated.data as Parameters<typeof authLogin>[0], token!)
+      showToast('Profile photo updated!', 'success')
+    } catch {
+      showToast('Failed to upload photo. Please try again.', 'error')
+    } finally {
+      setUploadingPhoto(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   if (!user) return <Navigate to="/" replace />
@@ -90,6 +123,8 @@ export default function Profile() {
 
   const locationParts = [u.city, u.state, u.country].filter(Boolean)
 
+  const isStudent = u.user_type === 'student'
+
   const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
     {
       key: 'info',
@@ -101,8 +136,8 @@ export default function Profile() {
         </svg>
       ),
     },
-    {
-      key: 'student',
+    ...(isStudent ? [{
+      key: 'student' as Tab,
       label: 'Student Profile',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -110,7 +145,7 @@ export default function Profile() {
           <path d="M6 13v6M18 13v6M4 19h16" />
         </svg>
       ),
-    },
+    }] : []),
     {
       key: 'listings',
       label: 'My Listings',
@@ -149,19 +184,42 @@ export default function Profile() {
           <div className="profile-cover__inner">
             <div className="profile-cover__left">
               <div className="profile-cover__avatar-wrap">
-                <div className="profile-cover__avatar">
+                <div
+                  className={`profile-cover__avatar${u.profile_picture ? ' profile-cover__avatar--clickable' : ''}`}
+                  onClick={() => u.profile_picture && setPreviewOpen(true)}
+                >
                   {u.profile_picture ? (
                     <img src={u.profile_picture} alt={u.full_name} />
                   ) : (
                     <span>{u.full_name.charAt(0).toUpperCase()}</span>
                   )}
                 </div>
-                <button type="button" className="profile-cover__photo-btn" title="Change photo">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                    <circle cx="12" cy="13" r="4" />
-                  </svg>
+                <button
+                  type="button"
+                  className="profile-cover__photo-btn"
+                  title="Change photo"
+                  disabled={uploadingPhoto}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploadingPhoto ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13" className="cl-iicon--spin">
+                      <circle cx="12" cy="12" r="10" strokeOpacity=".25" />
+                      <path d="M12 2a10 10 0 0 1 10 10" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                  )}
                 </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handlePhotoChange}
+                />
               </div>
 
               <div className="profile-cover__identity">
@@ -332,6 +390,28 @@ export default function Profile() {
         </div>
       </main>
       <Footer />
+
+      {previewOpen && u.profile_picture && (
+        <div className="profile-photo-preview" onClick={() => setPreviewOpen(false)}>
+          <button
+            type="button"
+            className="profile-photo-preview__close"
+            onClick={() => setPreviewOpen(false)}
+            aria-label="Close preview"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="18" height="18">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+          <img
+            src={u.profile_picture}
+            alt={u.full_name}
+            className="profile-photo-preview__img"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </>
   )
 }
@@ -340,14 +420,18 @@ export default function Profile() {
 
 function PersonalInfoPanel({ user }: { user: ProfileUser }) {
   const { showToast } = useToast()
+  const { login: authLogin, token } = useAuth()
   const [form, setForm] = useState({
     full_name: user.full_name ?? '',
     email: user.email ?? '',
     phone_number: user.phone_number ?? '',
     dob: user.dob ?? '',
     language: user.language ?? '',
+    nationality: user.nationality ?? '',
+    about_me: user.about_me ?? '',
   })
   const [saving, setSaving] = useState(false)
+  const [userType, setUserType] = useState<'student' | 'other'>(user.user_type ?? 'other')
 
   const [dialCode, setDialCode] = useState(user.phone_code ?? '+44')
   const [countryCode, setCountryCode] = useState(() => {
@@ -365,43 +449,49 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
   const [citiesLoading, setCitiesLoading]       = useState(false)
   const [cityVal, setCityVal]                   = useState(user.city ?? '')
 
-  const skipCountryEffect = useRef(true)
-  const skipStateEffect   = useRef(true)
+  const hasInitialized = useRef(false)
 
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  // Fetch countries on mount, pre-load states (and cities if state is set)
+  // Fetch countries on mount, pre-load states and cities for existing saved values.
+  // Uses isCurrent to discard results from StrictMode's first (discarded) invocation.
   useEffect(() => {
+    let isCurrent = true
     setCountriesLoading(true)
     fetchCountries()
       .then((countries) => {
+        if (!isCurrent) return
         setApiCountries(countries)
         const current = countries.find((c) => c.iso2 === countryCode)
-        if (!current) return
+        if (!current) { hasInitialized.current = true; return }
         setStatesLoading(true)
         fetchStates(current.name)
           .then((states) => {
+            if (!isCurrent) return
             setApiStates(states)
             if (stateVal) {
               setCitiesLoading(true)
               fetchCities(current.name, stateVal)
-                .then(setApiCities)
-                .catch(() => setApiCities([]))
-                .finally(() => setCitiesLoading(false))
+                .then((cities) => { if (isCurrent) setApiCities(cities) })
+                .catch(() => { if (isCurrent) setApiCities([]) })
+                .finally(() => { if (isCurrent) { setCitiesLoading(false); hasInitialized.current = true } })
+            } else {
+              hasInitialized.current = true
             }
           })
-          .catch(() => setApiStates([]))
-          .finally(() => setStatesLoading(false))
+          .catch(() => { if (isCurrent) { setApiStates([]); hasInitialized.current = true } })
+          .finally(() => { if (isCurrent) setStatesLoading(false) })
       })
-      .catch(() => {})
-      .finally(() => setCountriesLoading(false))
+      .catch(() => { if (isCurrent) hasInitialized.current = true })
+      .finally(() => { if (isCurrent) setCountriesLoading(false) })
+    return () => { isCurrent = false }
   }, [])
 
-  // Fetch states when country changes (skip first render)
+  // Fetch states when country changes — only after initial load is done
   useEffect(() => {
-    if (skipCountryEffect.current) { skipCountryEffect.current = false; return }
+    if (!hasInitialized.current) return
     setApiStates([])
     setStateVal('')
     setApiCities([])
@@ -416,9 +506,9 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
       .finally(() => setStatesLoading(false))
   }, [countryCode])
 
-  // Fetch cities when state changes (skip first render)
+  // Fetch cities when state changes — only after initial load is done
   useEffect(() => {
-    if (skipStateEffect.current) { skipStateEffect.current = false; return }
+    if (!hasInitialized.current) return
     setApiCities([])
     setCityVal('')
     if (!stateVal || !countryCode || apiCountries.length === 0) return
@@ -452,8 +542,11 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
     setSaving(true)
     const countryName = apiCountries.find((c) => c.iso2 === countryCode)?.name ?? countryCode
     try {
-      // TODO: wire up actual API save with { ...form, phone_code: dialCode, country: countryName, state: stateVal, city: cityVal }
-      await new Promise((r) => setTimeout(r, 600))
+      const updated = await apiPatch<{ success: boolean; data: ProfileUser }>(
+        ENDPOINTS.user.update,
+        { ...form, phone_code: dialCode, country: countryName, state: stateVal, city: cityVal, user_type: userType },
+      )
+      authLogin(updated.data as Parameters<typeof authLogin>[0], token!)
       showToast('Profile updated successfully!', 'success')
     } catch {
       showToast('Failed to update profile. Please try again.', 'error')
@@ -469,6 +562,32 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
       </div>
 
       <form className="profile-form" onSubmit={handleSave} noValidate>
+        <div className="profile-form__section">
+          <div className="profile-form__section-label">I am a…</div>
+          <div className="auth-form__type-row" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className={`auth-form__type-btn${userType === 'student' ? ' is-active' : ''}`}
+              onClick={() => setUserType('student')}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M12 3L2 8l10 5 10-5-10-5z" /><path d="M6 13v6M18 13v6M4 19h16" />
+              </svg>
+              Student
+            </button>
+            <button
+              type="button"
+              className={`auth-form__type-btn${userType === 'other' ? ' is-active' : ''}`}
+              onClick={() => setUserType('other')}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+              </svg>
+              Other
+            </button>
+          </div>
+        </div>
+
         <div className="profile-form__section">
           <div className="profile-form__section-label">Basic Info</div>
           <div className="profile-form__row">
@@ -503,7 +622,28 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
                 placeholder="e.g. English"
               />
             </div>
-            <div className="profile-form__field" />
+            <div className="profile-form__field">
+              <label className="profile-form__label">Nationality</label>
+              <RegionDropdown
+                items={NATIONALITIES}
+                value={form.nationality}
+                onChange={(v) => set('nationality', v)}
+                placeholder="Select nationality"
+              />
+            </div>
+          </div>
+          <div className="profile-form__row">
+            <div className="profile-form__field profile-form__field--full">
+              <label className="profile-form__label">About Me</label>
+              <textarea
+                className="profile-form__input profile-form__textarea"
+                rows={3}
+                placeholder="Tell others a bit about yourself…"
+                value={form.about_me}
+                onChange={(e) => set('about_me', e.target.value.slice(0, 300))}
+              />
+              <div className="cl-char-count">{form.about_me.length}/300</div>
+            </div>
           </div>
         </div>
 
@@ -599,20 +739,34 @@ function PersonalInfoPanel({ user }: { user: ProfileUser }) {
 
 function StudentProfilePanel() {
   const { showToast } = useToast()
-  const [university, setUniversity]   = useState('')
-  const [course, setCourse]           = useState('')
-  const [year, setYear]               = useState('')
-  const [nationality, setNationality] = useState('')
-  const [languages, setLanguages]     = useState<string[]>([])
-  const [aboutMe, setAboutMe]         = useState('')
-  const [saving, setSaving]           = useState(false)
-  const [lifestyle, setLifestyle]     = useState<Record<string, string>>(
+  const [university, setUniversity] = useState('')
+  const [course, setCourse]         = useState('')
+  const [year, setYear]             = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [loading, setLoading]       = useState(true)
+  const [lifestyle, setLifestyle]   = useState<Record<string, string>>(
     () => Object.fromEntries(LIFESTYLE_OPTIONS.map(r => [r.key, '']))
   )
 
-  function toggleLanguage(lang: string) {
-    setLanguages(prev => prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang])
-  }
+  useEffect(() => {
+    apiGet<{ success: boolean; data: Record<string, string> | null }>(ENDPOINTS.user.studentProfile)
+      .then(res => {
+        if (!res.data) return
+        setUniversity(res.data.university ?? '')
+        setCourse(res.data.course ?? '')
+        setYear(res.data.study_year ?? '')
+        setLifestyle(prev => {
+          const updated = { ...prev }
+          LIFESTYLE_OPTIONS.forEach(r => {
+            const key = `lifestyle_${r.key}` as string
+            if (res.data![key]) updated[r.key] = res.data![key]
+          })
+          return updated
+        })
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
 
   function setLifestyleOption(key: string, val: string) {
     setLifestyle(prev => ({ ...prev, [key]: prev[key] === val ? '' : val }))
@@ -622,7 +776,15 @@ function StudentProfilePanel() {
     e.preventDefault()
     setSaving(true)
     try {
-      await new Promise(r => setTimeout(r, 600))
+      const payload: Record<string, string | null> = {
+        university: university || null,
+        course: course || null,
+        study_year: year || null,
+      }
+      LIFESTYLE_OPTIONS.forEach(r => {
+        payload[`lifestyle_${r.key}`] = lifestyle[r.key] || null
+      })
+      await apiPut(ENDPOINTS.user.studentProfile, payload)
       showToast('Student profile updated!', 'success')
     } catch {
       showToast('Failed to save. Please try again.', 'error')
@@ -630,6 +792,8 @@ function StudentProfilePanel() {
       setSaving(false)
     }
   }
+
+  if (loading) return <div style={{ padding: '40px 0', textAlign: 'center', color: '#6b7280', fontSize: 14 }}>Loading…</div>
 
   return (
     <>
@@ -658,82 +822,23 @@ function StudentProfilePanel() {
           <div className="profile-form__row">
             <div className="profile-form__field">
               <label className="profile-form__label">Course / Program</label>
-              <div className="crp-select-wrap">
-                <select className="crp-select profile-form__input" value={course} onChange={e => setCourse(e.target.value)}>
-                  <option value="">Select your course</option>
-                  {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <svg className="crp-select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
-              </div>
+              <input
+                className="profile-form__input"
+                type="text"
+                placeholder="e.g. Computer Science, Law, Medicine…"
+                value={course}
+                onChange={e => setCourse(e.target.value)}
+              />
             </div>
             <div className="profile-form__field">
               <label className="profile-form__label">Year of Study</label>
-              <div className="crp-select-wrap">
-                <select className="crp-select profile-form__input" value={year} onChange={e => setYear(e.target.value)}>
+              <div className="profile-form__select-wrap">
+                <select className="profile-form__input profile-form__select" value={year} onChange={e => setYear(e.target.value)}>
                   <option value="">Select year</option>
                   {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
-                <svg className="crp-select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
+                <svg className="profile-form__select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Background */}
-        <div className="profile-form__section">
-          <div className="profile-form__section-label">Background</div>
-          <div className="profile-form__row">
-            <div className="profile-form__field">
-              <label className="profile-form__label">Nationality</label>
-              <div className="crp-select-wrap">
-                <select className="crp-select profile-form__input" value={nationality} onChange={e => setNationality(e.target.value)}>
-                  <option value="">Select nationality</option>
-                  {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <svg className="crp-select-arrow" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15"><polyline points="6 9 12 15 18 9" /></svg>
-              </div>
-            </div>
-            <div className="profile-form__field" />
-          </div>
-          <div className="profile-form__row">
-            <div className="profile-form__field profile-form__field--full">
-              <label className="profile-form__label">Languages Spoken</label>
-              <div className="crp-lang-grid" style={{ marginTop: 8 }}>
-                {LANGUAGES.map(lang => (
-                  <button
-                    key={lang}
-                    type="button"
-                    className={`crp-lang-btn${languages.includes(lang) ? ' is-active' : ''}`}
-                    onClick={() => toggleLanguage(lang)}
-                  >
-                    {lang}
-                    {languages.includes(lang) && (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" style={{ marginLeft: 3 }}>
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* About Me */}
-        <div className="profile-form__section">
-          <div className="profile-form__section-label">About Me</div>
-          <div className="profile-form__row">
-            <div className="profile-form__field profile-form__field--full">
-              <label className="profile-form__label">About Me</label>
-              <p style={{ fontSize: 12, color: '#aaa', margin: '2px 0 8px' }}>Describe your routine, what you're like as a flatmate, what you enjoy.</p>
-              <textarea
-                className="profile-form__input cl-textarea"
-                rows={4}
-                placeholder="e.g. I'm a quiet and tidy student who works mostly in the mornings. I love cooking and enjoy a peaceful home environment..."
-                value={aboutMe}
-                onChange={e => setAboutMe(e.target.value.slice(0, 300))}
-              />
-              <div className="cl-char-count">{aboutMe.length}/300</div>
             </div>
           </div>
         </div>
@@ -812,11 +917,15 @@ function ListingsPanel() {
       .finally(() => setLoading(false))
   }, [])
 
-  async function handleDelete(id: string, title: string) {
+  async function handleDelete(id: string, title: string, listing_type: string) {
     if (!window.confirm(`Delete "${title || 'this listing'}"? This cannot be undone.`)) return
     setActing(id)
     try {
-      await apiDelete(ENDPOINTS.housing.delete(id))
+      const endpoint =
+        listing_type === 'marketplace' ? ENDPOINTS.marketplace.delete(id) :
+        listing_type === 'teach_and_coach' ? ENDPOINTS.teachAndCoach.delete(id) :
+        ENDPOINTS.housing.delete(id)
+      await apiDelete(endpoint)
       setListings(prev => prev.filter(l => l.id !== id))
       showToast('Listing deleted.', 'success')
     } catch {
@@ -830,7 +939,11 @@ function ListingsPanel() {
     const next = l.status === 'active' ? 'paused' : 'active'
     setActing(l.id)
     try {
-      await apiPatch(ENDPOINTS.housing.status(l.id), { status: next })
+      const endpoint =
+        l.listing_type === 'marketplace' ? ENDPOINTS.marketplace.status(l.id) :
+        l.listing_type === 'teach_and_coach' ? ENDPOINTS.teachAndCoach.status(l.id) :
+        ENDPOINTS.housing.status(l.id)
+      await apiPatch(endpoint, { status: next })
       setListings(prev => prev.map(x => x.id === l.id ? { ...x, status: next } : x))
       showToast(`Listing ${next === 'active' ? 'activated' : 'paused'}.`, 'success')
     } catch {
@@ -911,7 +1024,12 @@ function ListingsPanel() {
                     type="button"
                     title="View listing"
                     disabled={busy}
-                    onClick={() => navigate(`/housing/${l.id}`)}
+                    onClick={() => {
+                      if (l.listing_type === 'marketplace') navigate(`/buy-sell/${l.id}`)
+                      else if (l.listing_type === 'roommate') navigate(`/roommates/${l.id}`)
+                      else if (l.listing_type === 'teach_and_coach') navigate(`/teach-and-coach/${l.id}`)
+                      else navigate(`/housing/${l.id}`)
+                    }}
                     style={{ width: 34, height: 34, borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
                     onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
@@ -927,7 +1045,14 @@ function ListingsPanel() {
                     type="button"
                     title="Edit listing"
                     disabled={busy}
-                    onClick={() => navigate(`/profile/post/housing/edit/${l.id}`)}
+                    onClick={() => {
+                      if (l.listing_type === 'marketplace') navigate(`/profile/post/buy-sell/edit/${l.id}`)
+                      else if (l.listing_type === 'roommate') navigate(`/profile/post/roommates/edit/${l.id}`)
+                      else if (l.listing_type === 'teach_and_coach') {
+                        sessionStorage.setItem('tac_draft_id', l.id)
+                        navigate('/profile/post/teach-and-coach')
+                      } else navigate(`/profile/post/housing/edit/${l.id}`)
+                    }}
                     style={{ width: 34, height: 34, borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
                     onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
@@ -964,7 +1089,7 @@ function ListingsPanel() {
                     type="button"
                     title="Delete listing"
                     disabled={busy}
-                    onClick={() => handleDelete(l.id, l.title ?? '')}
+                    onClick={() => handleDelete(l.id, l.title ?? '', l.listing_type)}
                     style={{ width: 34, height: 34, borderRadius: 7, border: '1px solid #fecaca', background: '#fff5f5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', opacity: busy ? 0.5 : 1 }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#fee2e2')}
                     onMouseLeave={e => (e.currentTarget.style.background = '#fff5f5')}

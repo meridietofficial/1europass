@@ -1,33 +1,33 @@
-import { useState, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import { apiGet, apiPut } from '../api/client'
+import { uploadImagesToCloudinary } from '../api/cloudinaryUpload'
+import { ENDPOINTS } from '../api/endpoints'
+import { useAuth } from '../context/AuthContext'
 
 const PHOTO_ROOM_LABELS = ['Living Room', 'Bedroom', 'Kitchen', 'Bathroom', 'Common Area', 'Other']
 
 interface PhotoItem {
-  file: File
-  preview: string
+  dbId?: number
+  file?: File
+  url: string
   label: string
 }
 
-const MOCK_STUDENT_PROFILE = {
-  university: 'University of Amsterdam',
-  course: 'Computer Science',
-  year: '2nd Year',
-  nationality: 'Indian',
-  languages: ['English', 'Hindi'],
-  aboutMe: "I'm a quiet and tidy student who enjoys cooking and keeping things organised. Looking for a chill flatmate who respects shared spaces.",
-  lifestyle: {
-    Cleanliness: 'High',
-    'Sleep Schedule': 'Early Bird',
-    Smoking: 'No',
-    Drinking: 'Occasionally',
-    Cooking: 'Often',
-    Guests: 'Rarely',
-    Pets: 'Love Pets',
-    Music: 'Quiet',
-  },
+interface StudentProfileData {
+  university: string | null
+  course: string | null
+  study_year: string | null
+  lifestyle_cleanliness: string | null
+  lifestyle_sleep: string | null
+  lifestyle_smoking: string | null
+  lifestyle_drinking: string | null
+  lifestyle_cooking: string | null
+  lifestyle_guests: string | null
+  lifestyle_pets: string | null
+  lifestyle_music: string | null
 }
 
 const LIFESTYLE_COLORS: Record<string, string> = {
@@ -42,17 +42,44 @@ const LIFESTYLE_COLORS: Record<string, string> = {
 
 export default function RoommatePreferences() {
   const navigate = useNavigate()
-  const p = MOCK_STUDENT_PROFILE
+  const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
+  const isStudent = user?.user_type === 'student'
 
   const [shareProfile, setShareProfile] = useState(false)
   const [photos, setPhotos] = useState<PhotoItem[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [savedToast, setSavedToast] = useState(false)
+  const [studentProfile, setStudentProfile] = useState<StudentProfileData | null>(null)
+  const [intent, setIntent] = useState<'have-room' | 'need-room'>('have-room')
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!id) return
+    apiGet<{ success: boolean; data: { share_profile: number; intent: string; photos: { id: number; url: string }[] } }>(
+      ENDPOINTS.roommates.get(id)
+    ).then(res => {
+      setShareProfile(Boolean(res.data.share_profile))
+      setIntent((res.data.intent as 'have-room' | 'need-room') || 'have-room')
+      setPhotos((res.data.photos ?? []).map((p, i) => ({
+        dbId: p.id,
+        url: p.url,
+        label: PHOTO_ROOM_LABELS[i] ?? 'Other',
+      })))
+    }).catch(() => {})
+
+    if (isStudent) {
+      apiGet<{ success: boolean; data: StudentProfileData | null }>(ENDPOINTS.user.studentProfile)
+        .then(res => setStudentProfile(res.data))
+        .catch(() => {})
+    }
+  }, [id, isStudent])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
     const newPhotos: PhotoItem[] = files.map((file, i) => ({
       file,
-      preview: URL.createObjectURL(file),
+      url: URL.createObjectURL(file),
       label: PHOTO_ROOM_LABELS[photos.length + i] ?? 'Other',
     }))
     setPhotos(prev => [...prev, ...newPhotos])
@@ -60,10 +87,52 @@ export default function RoommatePreferences() {
   }
 
   function removePhoto(idx: number) {
-    setPhotos(prev => {
-      URL.revokeObjectURL(prev[idx].preview)
-      return prev.filter((_, i) => i !== idx)
+    const p = photos[idx]
+    if (!p.dbId && p.url.startsWith('blob:')) URL.revokeObjectURL(p.url)
+    setPhotos(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  async function uploadPhotos() {
+    if (!id) return
+    const newPhotos = photos.filter(p => p.file)
+    const keepIds = photos.filter(p => p.dbId).map(p => p.dbId!)
+
+    const uploaded = newPhotos.length > 0
+      ? await uploadImagesToCloudinary(newPhotos.map(p => p.file!), `roommates/${id}`)
+      : []
+
+    await apiPut(ENDPOINTS.roommates.update(id), {
+      photos: uploaded.map(url => ({ url })),
+      keep_ids: keepIds,
+      share_profile: shareProfile,
     })
+  }
+
+  async function handleSaveDraft() {
+    if (!id) return
+    setUploading(true)
+    try {
+      await uploadPhotos()
+      setSavedToast(true)
+      setTimeout(() => setSavedToast(false), 2500)
+    } catch (err) {
+      alert('Failed to save: ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleSaveAndNext() {
+    if (!id) return
+    setUploading(true)
+    try {
+      await uploadPhotos()
+      navigate(`/profile/post/roommates/edit/${id}/review`)
+    } catch (err) {
+      alert('Failed to save photos: ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setUploading(false)
+    }
   }
 
   const photoCount = photos.length
@@ -139,7 +208,7 @@ export default function RoommatePreferences() {
               <div className="crl-form-body">
 
                 {/* ── Photos ── */}
-                <div className="crl-form-section">
+                {intent === 'have-room' && <div className="crl-form-section">
                   <h3 className="cl-card__title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
                       <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
@@ -172,7 +241,7 @@ export default function RoommatePreferences() {
                     {photos.map((photo, idx) => (
                       <div key={idx} className="crl-photo-item">
                         <div className="crl-photo-item__img-wrap">
-                          <img src={photo.preview} alt={photo.label} className="crl-photo-item__img" />
+                          <img src={photo.url} alt={photo.label} className="crl-photo-item__img" />
                           <button type="button" className="crl-photo-item__remove" onClick={() => removePhoto(idx)} aria-label="Remove photo">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" width="11" height="11"><path d="M18 6 6 18M6 6l12 12" /></svg>
                           </button>
@@ -193,18 +262,20 @@ export default function RoommatePreferences() {
                     )}
                   </div>
                   <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFileChange} />
-                </div>
+                </div>}
 
-                {/* ── Share Student Profile toggle ── */}
+                {/* ── Share Profile toggle ── */}
                 <div className="crl-form-section">
                   <h3 className="cl-card__title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
                       <circle cx="12" cy="8" r="4" /><path d="M20 21a8 8 0 1 0-16 0" />
                     </svg>
-                    Share Your Student Profile
+                    Share Your Profile
                   </h3>
                   <p className="cl-card__sub">
-                    Show your university, background, and lifestyle to potential roommates. Listings with a profile get 3× more responses.
+                    {isStudent
+                      ? 'Show your university, background, and lifestyle to potential roommates. Listings with a profile get 3× more responses.'
+                      : 'Share your background and about me with potential roommates. Listings with a profile get 3× more responses.'}
                   </p>
 
                   <div
@@ -223,7 +294,7 @@ export default function RoommatePreferences() {
                       </svg>
                       <div>
                         <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, fontWeight: 700, color: shareProfile ? '#2e7d32' : '#444', margin: 0 }}>
-                          {shareProfile ? 'Profile shared with this listing' : 'Share my student profile'}
+                          {shareProfile ? 'Profile shared with this listing' : 'Share my profile'}
                         </p>
                         <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: 12, color: '#888', margin: '2px 0 0' }}>
                           {shareProfile ? 'Potential roommates will see your info below' : 'Toggle on to attach your profile to this listing'}
@@ -249,99 +320,95 @@ export default function RoommatePreferences() {
 
                   {shareProfile && (
                     <div style={{ marginTop: 6 }}>
-                      <div
-                        style={{
-                          display: 'flex', alignItems: 'flex-start', gap: 10,
-                          background: '#f0faf1', border: '1.5px solid #b7e0b9',
-                          borderRadius: 10, padding: '10px 14px', marginBottom: 18,
-                        }}
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="16" height="16" style={{ flexShrink: 0, marginTop: 1 }}>
-                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                        </svg>
-                        <p style={{ fontFamily: 'Nunito, sans-serif', fontSize: 12, color: '#555', margin: 0 }}>
-                          This info comes from your <strong>Student Profile</strong>.{' '}
-                          <Link to="/profile" style={{ color: '#5dae61', fontWeight: 700 }}>Edit in Profile →</Link>
-                        </p>
-                      </div>
-
-                      {/* Academic */}
+                      {/* Basic info (all users) */}
                       <div className="crl-form-section" style={{ paddingTop: 0 }}>
-                        <h3 className="cl-card__title">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
-                            <path d="M12 3L2 8l10 5 10-5-10-5z" /><path d="M6 13v6M18 13v6M4 19h16" />
-                          </svg>
-                          Academic
-                        </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-                          <div className="crp-profile-row">
-                            <span className="crp-profile-row__label">University</span>
-                            <span className="crp-profile-row__value">{p.university || <em style={{ color: '#aaa' }}>Not set</em>}</span>
-                          </div>
-                          <div className="crp-profile-row">
-                            <span className="crp-profile-row__label">Course</span>
-                            <span className="crp-profile-row__value">{p.course || <em style={{ color: '#aaa' }}>Not set</em>}</span>
-                          </div>
-                          <div className="crp-profile-row">
-                            <span className="crp-profile-row__label">Year</span>
-                            <span className="crp-profile-row__value">{p.year || <em style={{ color: '#aaa' }}>Not set</em>}</span>
-                          </div>
-                          <div className="crp-profile-row">
-                            <span className="crp-profile-row__label">Nationality</span>
-                            <span className="crp-profile-row__value">{p.nationality || <em style={{ color: '#aaa' }}>Not set</em>}</span>
-                          </div>
-                          <div className="crp-profile-row">
-                            <span className="crp-profile-row__label">Languages</span>
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                              {p.languages.length > 0
-                                ? p.languages.map(l => (
-                                    <span key={l} style={{ background: '#e8f5e9', color: '#2e7d32', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700, fontFamily: 'Nunito, sans-serif' }}>{l}</span>
-                                  ))
-                                : <em style={{ color: '#aaa', fontSize: 12 }}>Not set</em>}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* About Me */}
-                      <div className="crl-form-section">
                         <h3 className="cl-card__title">
                           <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
                           </svg>
                           About Me
                         </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+                          <div className="crp-profile-row">
+                            <span className="crp-profile-row__label">Nationality</span>
+                            <span className="crp-profile-row__value">{user?.nationality || <em style={{ color: '#aaa' }}>Not set</em>}</span>
+                          </div>
+                          <div className="crp-profile-row">
+                            <span className="crp-profile-row__label">Language</span>
+                            <span className="crp-profile-row__value">{user?.language || <em style={{ color: '#aaa' }}>Not set</em>}</span>
+                          </div>
+                          <div className="crp-profile-row">
+                            <span className="crp-profile-row__label">City</span>
+                            <span className="crp-profile-row__value">{user?.city || <em style={{ color: '#aaa' }}>Not set</em>}</span>
+                          </div>
+                        </div>
                         <p style={{
                           fontFamily: 'Nunito, sans-serif', fontSize: 13, color: '#444',
                           background: '#fafaf8', border: '1.5px solid #eee',
                           borderRadius: 10, padding: '12px 14px', marginTop: 12, lineHeight: 1.6,
                         }}>
-                          {p.aboutMe || <em style={{ color: '#aaa' }}>Not set — add it in your Student Profile.</em>}
+                          {user?.about_me || <em style={{ color: '#aaa' }}>No bio added yet — add it in your Profile.</em>}
                         </p>
                       </div>
 
-                      {/* Lifestyle */}
-                      <div className="crl-form-section">
-                        <h3 className="cl-card__title">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
-                            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                          </svg>
-                          Lifestyle
-                        </h3>
-                        <div className="crp-lifestyle-grid" style={{ marginTop: 12 }}>
-                          {Object.entries(p.lifestyle).map(([label, val]) => (
-                            <div key={label} className="crp-lifestyle-row">
-                              <span className="crp-lifestyle-label">{label}</span>
-                              <span style={{
-                                fontFamily: 'Nunito, sans-serif', fontSize: 12, fontWeight: 700,
-                                color: LIFESTYLE_COLORS[val] ?? '#555',
-                                background: `${LIFESTYLE_COLORS[val] ?? '#555'}18`,
-                                borderRadius: 20, padding: '3px 12px',
-                              }}>{val}</span>
+                      {/* Student-only: Academic + Lifestyle */}
+                      {isStudent && (
+                        <>
+                          <div className="crl-form-section">
+                            <h3 className="cl-card__title">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
+                                <path d="M12 3L2 8l10 5 10-5-10-5z" /><path d="M6 13v6M18 13v6M4 19h16" />
+                              </svg>
+                              Academic
+                            </h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+                              <div className="crp-profile-row">
+                                <span className="crp-profile-row__label">University</span>
+                                <span className="crp-profile-row__value">{studentProfile?.university || <em style={{ color: '#aaa' }}>Not set</em>}</span>
+                              </div>
+                              <div className="crp-profile-row">
+                                <span className="crp-profile-row__label">Course</span>
+                                <span className="crp-profile-row__value">{studentProfile?.course || <em style={{ color: '#aaa' }}>Not set</em>}</span>
+                              </div>
+                              <div className="crp-profile-row">
+                                <span className="crp-profile-row__label">Year</span>
+                                <span className="crp-profile-row__value">{studentProfile?.study_year || <em style={{ color: '#aaa' }}>Not set</em>}</span>
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                      </div>
+                          </div>
+
+                          <div className="crl-form-section">
+                            <h3 className="cl-card__title">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="17" height="17">
+                                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                              </svg>
+                              Lifestyle
+                            </h3>
+                            <div className="crp-lifestyle-grid" style={{ marginTop: 12 }}>
+                              {[
+                                { key: 'cleanliness', label: 'Cleanliness' },
+                                { key: 'sleep', label: 'Sleep Schedule' },
+                                { key: 'smoking', label: 'Smoking' },
+                                { key: 'drinking', label: 'Drinking' },
+                                { key: 'cooking', label: 'Cooking' },
+                                { key: 'guests', label: 'Guests' },
+                                { key: 'pets', label: 'Pets' },
+                                { key: 'music', label: 'Music' },
+                              ].map(({ key, label }) => {
+                                const val = studentProfile?.[`lifestyle_${key}` as keyof StudentProfileData]
+                                return (
+                                  <div key={key} className="crp-lifestyle-row">
+                                    <span className="crp-lifestyle-label">{label}</span>
+                                    {val
+                                      ? <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 12, fontWeight: 700, color: LIFESTYLE_COLORS[val] ?? '#555', background: `${LIFESTYLE_COLORS[val] ?? '#555'}18`, borderRadius: 20, padding: '3px 12px' }}>{val}</span>
+                                      : <em style={{ color: '#aaa', fontSize: 12 }}>Not set</em>}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -363,7 +430,7 @@ export default function RoommatePreferences() {
                   Roommate seekers browse your profile before contacting you. A complete student profile builds trust and gets you faster responses.
                 </p>
                 <Link
-                  to="/profile"
+                  to={isStudent ? '/profile#student' : '/profile#info'}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6, marginTop: 14,
                     fontFamily: 'Nunito, sans-serif', fontSize: 13, fontWeight: 700,
@@ -374,7 +441,7 @@ export default function RoommatePreferences() {
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                   </svg>
-                  Edit Student Profile
+                  Edit Profile
                 </Link>
               </div>
 
@@ -385,22 +452,14 @@ export default function RoommatePreferences() {
                     <span className="crl-tip__sparkles">✨</span>
                   </div>
                   <p className="crl-tip__text">Tip</p>
-                  <p className="crl-tip__desc">Add at least 3 photos — listings with photos get 5× more views.</p>
+                  <p className="crl-tip__desc">
+                    {intent === 'need-room'
+                      ? 'Share your profile — roommates are 3× more likely to respond when they can see who they\'ll be living with.'
+                      : 'Add at least 3 photos — listings with photos get 5× more views.'}
+                  </p>
                 </div>
               </div>
 
-              <div className="cl-card cl-card--draft" style={{ marginTop: 16 }}>
-                <div className="cl-draft">
-                  <div>
-                    <h4 className="cl-draft__title">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="16" height="16"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-                      Save as Draft
-                    </h4>
-                    <p className="cl-draft__sub">You can save and continue later.</p>
-                  </div>
-                  <button type="button" className="cl-draft__btn">Save Draft</button>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -416,12 +475,18 @@ export default function RoommatePreferences() {
             </div>
             <div className="cl-footer-bar__right">
               <div className="cl-footer-bar__btns">
-                <button type="button" className="cl-back-btn" onClick={() => navigate('/profile/post/roommates')}>
+                <button type="button" className="cl-back-btn" onClick={() => navigate(`/profile/post/roommates/edit/${id}`)}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15"><path d="M19 12H5M12 5l-7 7 7 7" /></svg>
                   Back
                 </button>
-                <button type="button" className="cl-next-btn" onClick={() => navigate('/profile/post/roommates/review')}>
-                  Next: Review
+                <button type="button" className="cl-next-btn" style={{ background: '#fff', color: '#1a1a1a', borderColor: '#1a1a1a' }} onClick={handleSaveDraft} disabled={uploading}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
+                  </svg>
+                  {uploading ? 'Saving…' : 'Save as Draft'}
+                </button>
+                <button type="button" className="cl-next-btn" onClick={handleSaveAndNext} disabled={uploading}>
+                  {uploading ? 'Saving…' : 'Next'}
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                 </button>
               </div>
@@ -433,6 +498,18 @@ export default function RoommatePreferences() {
           </div>
         </div>
       </main>
+      {savedToast && (
+        <div style={{
+          position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
+          background: '#1a1a1a', color: '#fff', borderRadius: 10, padding: '11px 22px',
+          fontFamily: 'Nunito, sans-serif', fontSize: 14, fontWeight: 600,
+          display: 'flex', alignItems: 'center', gap: 8, zIndex: 9999,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+        }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12" /></svg>
+          Draft saved successfully
+        </div>
+      )}
       <Footer />
     </>
   )

@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiGet } from '../api/client'
+import { ENDPOINTS } from '../api/endpoints'
 import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
@@ -36,19 +38,66 @@ const TAG_COLORS: Record<string, string> = {
   'LGBTQ+ friendly':  '#FFF3E0',
 }
 
+interface ApiListing {
+  id: string
+  title: string
+  intent: string
+  room_type: string
+  city: string | null
+  country: string | null
+  rent: number | null
+  budget_min: number | null
+  budget_max: number | null
+  size_sqm: number | null
+  furnished: string | null
+  available_now: number
+  available_date: string | null
+  pets_allowed: number | null
+  smoking_allowed: number | null
+  gender_preference: string | null
+  full_name: string
+  cover_photo: string | null
+}
+
+function formatAvail(l: ApiListing) {
+  if (l.available_now) return l.intent === 'need-room' ? 'Can move immediately' : 'Available immediately'
+  if (l.available_date) {
+    const d = new Date(l.available_date)
+    return `From ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+  }
+  return null
+}
+
+function getInitials(name: string) {
+  return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
+}
+
+const GRADIENTS = [
+  'linear-gradient(135deg,#a8edea,#fed6e3)',
+  'linear-gradient(135deg,#ffecd2,#fcb69f)',
+  'linear-gradient(135deg,#c3cfe2,#f5f7fa)',
+  'linear-gradient(135deg,#d4fc79,#96e6a1)',
+  'linear-gradient(135deg,#f093fb,#f5576c)',
+  'linear-gradient(135deg,#4facfe,#00f2fe)',
+]
+
 export default function Roommates() {
   const { active, loading } = useCategoryActive('roommates')
   const [budget, setBudget] = useState(1000)
   const [activeCity, setActiveCity] = useState('Berlin')
-  const [favorites, setFavorites] = useState<number[]>([])
+  const [favorites, setFavorites] = useState<string[]>([])
+  const [apiListings, setApiListings] = useState<ApiListing[]>([])
+
+  useEffect(() => {
+    apiGet<{ success: boolean; data: ApiListing[] }>(ENDPOINTS.roommates.list)
+      .then(res => setApiListings(res.data))
+      .catch(() => {})
+  }, [])
 
   const navigate = useNavigate()
 
   if (loading) return null
   if (!active) return <CategoryComingSoon name="Roommates" />
-
-  const toggleFav = (id: number) =>
-    setFavorites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id])
 
   return (
     <>
@@ -215,7 +264,7 @@ export default function Roommates() {
             <div className="roommates__results">
               <div className="roommates__results-header">
                 <h2 className="roommates__results-count">
-                  <strong>87 roommates</strong> found in {activeCity}
+                  <strong>{apiListings.length > 0 ? apiListings.length : LISTINGS.length} roommates</strong> found
                 </h2>
                 <div className="roommates__results-controls">
                   <select className="roommates__sort-select">
@@ -228,14 +277,100 @@ export default function Roommates() {
               </div>
               <p className="roommates__results-sub">Students looking for roommates or sharing their place near universities and city centres.</p>
 
-              <div className="roommates__grid">
-                {LISTINGS.map(l => (
+              <div className={apiListings.length > 0 ? 'housing__grid' : 'roommates__grid'}>
+
+                {/* Real listings from API */}
+                {apiListings.map((l, idx) => {
+                  const price = l.intent === 'need-room' ? l.budget_max : l.rent
+                  const priceMin = l.intent === 'need-room' ? l.budget_min : null
+                  const intentLabel = l.intent === 'have-room' ? 'Has a Room' : 'Needs a Room'
+                  const avail = formatAvail(l)
+                  const tags: string[] = []
+                  if (l.pets_allowed === 1) tags.push('Pet-friendly')
+                  if (l.smoking_allowed === 0) tags.push('Non-smoker')
+                  if (l.furnished) tags.push(`${l.furnished} furnished`)
+                  const CARD_TAG_COLORS: Record<string, string> = {
+                    'Pet-friendly': '#FFF3E0',
+                    'Non-smoker': '#FCE4EC',
+                    'Fully furnished': '#E8F5E9',
+                    'Partially furnished': '#E8F5E9',
+                  }
+                  return (
+                    <div key={l.id} className="housing__card" onClick={() => navigate(`/roommates/${l.id}`)}>
+                      <div
+                        className="housing__card-img"
+                        style={l.cover_photo
+                          ? { backgroundImage: `url(${l.cover_photo})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                          : { background: GRADIENTS[idx % GRADIENTS.length] }
+                        }
+                      >
+                        <span className="housing__card-type-badge">{intentLabel}</span>
+                        <button
+                          className={`housing__card-fav${favorites.includes(l.id) ? ' housing__card-fav--active' : ''}`}
+                          onClick={e => { e.stopPropagation(); setFavorites(f => f.includes(l.id) ? f.filter(x => x !== l.id) : [...f, l.id]) }}
+                        >♥</button>
+                        {!l.cover_photo && (
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Nunito, sans-serif', fontWeight: 800, fontSize: 20, color: '#1a1a1a' }}>
+                              {getInitials(l.full_name)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="housing__card-body">
+                        <div className="housing__card-title">{l.title}</div>
+                        <div className="housing__card-price-row">
+                          {price != null && (
+                            <div className="housing__card-price">
+                              {priceMin != null
+                                ? `€${priceMin.toLocaleString()} – €${price.toLocaleString()}`
+                                : `€${price.toLocaleString()}`}
+                              <span>/month</span>
+                            </div>
+                          )}
+                          {l.size_sqm && !( l.intent === 'need-room') && (
+                            <div className="housing__card-size">{l.size_sqm} m²</div>
+                          )}
+                        </div>
+                        {l.room_type && (
+                          <div className={`housing__card-furnished${l.room_type === 'private' ? ' housing__card-furnished--yes' : ''}`}>
+                            {l.room_type === 'private' ? '🚪 Private Room' : '🤝 Shared Room'}
+                          </div>
+                        )}
+                        {(l.city || l.country) && (
+                          <div className="housing__card-location">📍 {[l.city, l.country].filter(Boolean).join(', ')}</div>
+                        )}
+                        {tags.length > 0 && (
+                          <div className="housing__card-tags">
+                            {tags.map(tag => (
+                              <span key={tag} className="housing__card-tag" style={{ background: CARD_TAG_COLORS[tag] || '#f5f5f5' }}>{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                        {avail && <div className="housing__card-avail">{avail}</div>}
+                        <div className="housing__card-footer">
+                          <div className="housing__card-agent">
+                            <div className="housing__card-avatar">{l.full_name[0]?.toUpperCase()}</div>
+                            <div className="housing__card-agent-info">
+                              <span className="housing__card-agent-name">{l.full_name}</span>
+                              <span className="housing__card-agent-role">{l.intent === 'have-room' ? 'Room owner' : 'Room seeker'}</span>
+                            </div>
+                          </div>
+                          <button className="housing__card-details" onClick={e => { e.stopPropagation(); navigate(`/roommates/${l.id}`) }}>View profile +</button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Demo listings (shown when no real listings yet) */}
+                {apiListings.length === 0 && LISTINGS.map(l => (
                   <div key={l.id} className="roommates__card" onClick={() => navigate(`/roommates/${l.id}`)}>
                     <div className="roommates__card-img" style={{ background: l.gradient }}>
                       {l.verified && <span className="roommates__card-verified">✔ VERIFIED</span>}
                       <button
-                        className={`roommates__card-fav${favorites.includes(l.id) ? ' roommates__card-fav--active' : ''}`}
-                        onClick={e => { e.stopPropagation(); toggleFav(l.id) }}
+                        className="roommates__card-fav"
+                        onClick={e => { e.stopPropagation() }}
                       >♥</button>
                       <div className="roommates__card-avatar-wrap">
                         <div className="roommates__card-avatar-circle">{l.initials}</div>
@@ -263,6 +398,7 @@ export default function Roommates() {
                     </div>
                   </div>
                 ))}
+
               </div>
             </div>
 

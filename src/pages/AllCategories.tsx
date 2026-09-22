@@ -9,7 +9,7 @@ const SLUG_ROUTES: Record<string, string> = {
   housing: '/housing',
   roommates: '/roommates',
   'buy-and-sell': '/buy-sell',
-  tutor: '/tutor',
+  tutor: '/teach-and-coach',
   trip: '/trip',
 }
 

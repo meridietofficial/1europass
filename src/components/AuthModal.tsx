@@ -41,6 +41,7 @@ export default function AuthModal({ initialMode, onClose }: Props) {
   const [regPassword, setRegPassword]     = useState('')
   const [dialCode, setDialCode]           = useState('+44')
   const [termsChecked, setTermsChecked]   = useState(false)
+  const [userType, setUserType]           = useState<'student' | 'other'>('other')
 
   // Location state — default to UK (European country)
   const [apiCountries, setApiCountries]         = useState<ApiCountry[]>([])
@@ -215,6 +216,7 @@ export default function AuthModal({ initialMode, onClose }: Props) {
         country: countryName,
         state,
         city,
+        user_type: userType,
       })
       authLogin(user, token)
       close()
@@ -344,6 +346,32 @@ export default function AuthModal({ initialMode, onClose }: Props) {
                   </div>
                 </div>
 
+                <div className="auth-form__group">
+                  <label className="auth-form__label">I am a…</label>
+                  <div className="auth-form__type-row">
+                    <button
+                      type="button"
+                      className={`auth-form__type-btn${userType === 'student' ? ' is-active' : ''}`}
+                      onClick={() => setUserType('student')}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <path d="M12 3L2 8l10 5 10-5-10-5z" /><path d="M6 13v6M18 13v6M4 19h16" />
+                      </svg>
+                      Student
+                    </button>
+                    <button
+                      type="button"
+                      className={`auth-form__type-btn${userType === 'other' ? ' is-active' : ''}`}
+                      onClick={() => setUserType('other')}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                      </svg>
+                      Other
+                    </button>
+                  </div>
+                </div>
+
                 <div className="auth-form__row">
                   <div className="auth-form__group">
                     <label className="auth-form__label">Phone Number</label>
@@ -365,31 +393,6 @@ export default function AuthModal({ initialMode, onClose }: Props) {
                       onChange={handleCountryChange}
                       apiCountries={apiCountries.length > 0 ? apiCountries : undefined}
                       loading={countriesLoading}
-                    />
-                  </div>
-                </div>
-
-                <div className="auth-form__row">
-                  <div className="auth-form__group">
-                    <label className="auth-form__label">State / Region</label>
-                    <RegionDropdown
-                      items={apiStates}
-                      value={state}
-                      onChange={setState}
-                      placeholder="Select state"
-                      loading={statesLoading}
-                      disabled={!countryCode}
-                    />
-                  </div>
-                  <div className="auth-form__group">
-                    <label className="auth-form__label">City</label>
-                    <RegionDropdown
-                      items={apiCities}
-                      value={city}
-                      onChange={setCity}
-                      placeholder="Select city"
-                      loading={citiesLoading}
-                      disabled={!state}
                     />
                   </div>
                 </div>

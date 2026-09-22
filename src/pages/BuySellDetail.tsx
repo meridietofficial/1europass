@@ -1,201 +1,519 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
+import { apiGet } from '../api/client'
+import { ENDPOINTS } from '../api/endpoints'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
-import { LISTINGS } from './BuySell'
 
-const FULL_LISTINGS = [
-  { id: 1, title: 'MacBook Air M1', price: 250, condition: 'LIKE NEW', location: 'Dublin, Ireland', time: '2h ago', img: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&q=80', imgs: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&q=80','https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=800&q=80','https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&q=80'], category: 'Electronics', seller: 'Liam O.', sellerAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&q=80', sellerJoined: 'Sep 2024', desc: 'Selling my MacBook Air M1 in excellent condition. Used for university work only. Battery health 97%, no scratches on screen or body. Original charger and box included. Upgrading to M3 so letting this go at a great price.' },
-  { id: 2, title: '2-Seater Sofa', price: 120, condition: 'GOOD', location: 'Berlin, Germany', time: '5h ago', img: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80', imgs: ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80','https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=800&q=80'], category: 'Furniture & Home', seller: 'Jonas K.', sellerAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=60&q=80', sellerJoined: 'Mar 2024', desc: 'Comfortable 2-seater sofa, light grey fabric. Minor wear on the armrests but overall great condition. Perfect for a student apartment. Moving out of Berlin so need to sell ASAP. Buyer arranges pickup.' },
-  { id: 3, title: 'Trek Hybrid Bike', price: 90, condition: 'GOOD', location: 'Amsterdam, Netherlands', time: '1d ago', img: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=800&q=80', imgs: ['https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=800&q=80','https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=800&q=80'], category: 'Bikes & Mobility', seller: 'Sven D.', sellerAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=60&q=80', sellerJoined: 'Jan 2025', desc: 'Trek FX2 hybrid bike, great for city commuting. Recently serviced — new brake pads, chain, and tyres. 21-speed, lightweight aluminium frame. Comes with front & rear lights and a lock.' },
-  { id: 4, title: 'Business Books Set', price: 25, condition: 'LIKE NEW', location: 'Madrid, Spain', time: '1d ago', img: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80', imgs: ['https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80'], category: 'Books & Study', seller: 'Ana R.', sellerAvatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=60&q=80', sellerJoined: 'Oct 2024', desc: 'Set of 8 business and economics textbooks from my first year. All in like-new condition — barely opened. Includes titles on microeconomics, marketing, accounting, and strategy. Selling as a bundle only.' },
-  { id: 5, title: 'Sony WH-CH510 Headphones', price: 35, condition: 'GOOD', location: 'Paris, France', time: '2d ago', img: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80', imgs: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80','https://images.unsplash.com/photo-1484704849700-f032a568e944?w=800&q=80'], category: 'Electronics', seller: 'Clara M.', sellerAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=60&q=80', sellerJoined: 'Jun 2024', desc: 'Sony WH-CH510 wireless headphones in good working condition. 35-hour battery life, clear sound quality. Minor cosmetic scratches on the headband but audio is perfect. Comes with USB-C charging cable.' },
-  { id: 6, title: 'Nike Air Force 1', price: 45, condition: 'LIKE NEW', location: 'Milan, Italy', time: '2d ago', img: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80', imgs: ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80'], category: 'Fashion', seller: 'Marco B.', sellerAvatar: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=60&q=80', sellerJoined: 'Feb 2025', desc: 'Nike Air Force 1 Low, white, UK size 9. Worn only twice for a photoshoot. Absolutely pristine condition. Original box included. Perfect for anyone who missed out on this colourway.' },
-  { id: 7, title: 'IKEA Desk Lamp', price: 18, condition: 'GOOD', location: 'Prague, Czechia', time: '3d ago', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80', imgs: ['https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80'], category: 'Furniture & Home', seller: 'Tomáš N.', sellerAvatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=60&q=80', sellerJoined: 'Apr 2024', desc: 'IKEA Forså work lamp in white. Adjustable arm and head for flexible lighting. Fully working, bulb included. Great for studying. Moving apartments so selling most of my furniture.' },
-  { id: 8, title: 'Cookware Set (5 Pcs)', price: 40, condition: 'LIKE NEW', location: 'Vienna, Austria', time: '3d ago', img: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80', imgs: ['https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80'], category: 'Kitchen & Appliances', seller: 'Eva H.', sellerAvatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=60&q=80', sellerJoined: 'Nov 2023', desc: '5-piece non-stick cookware set — 2 pots, 2 pans, 1 saucepan. Used for 6 months, all in excellent condition. No scratches on the coating. Selling because I\'m moving back home after graduation.' },
-]
+interface Photo { id: number; url: string; sort_order: number }
+
+interface ListingDetail {
+  id: string
+  title: string
+  description: string | null
+  condition: string
+  price: number
+  is_free: number
+  city: string | null
+  country: string | null
+  status: string
+  category_name: string | null
+  subcategory_name: string | null
+  full_name: string | null
+  member_since: string | null
+  created_at: string
+  photos: Photo[]
+}
+
+interface RelatedListing {
+  id: string
+  title: string
+  price: number
+  is_free: number
+  condition: string
+  city: string | null
+  country: string | null
+  cover_photo: string | null
+  created_at: string
+}
+
+const CONDITION_LABEL: Record<string, string> = {
+  'new': 'New', 'like-new': 'Like New', 'good': 'Good', 'fair': 'Fair', 'used': 'Used',
+}
 
 const CONDITION_COLOR: Record<string, string> = {
-  'LIKE NEW': '#5dae61',
-  'GOOD': '#f0a500',
+  'new': '#5dae61', 'like-new': '#5dae61', 'good': '#f0a500', 'fair': '#e87d00', 'used': '#9ca3af',
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (diff < 3600) return `${Math.floor(diff / 60) || 1}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return `${Math.floor(diff / 604800)}w ago`
+}
+
+function Lightbox({ photos, index, onClose, onPrev, onNext }: {
+  photos: Photo[]; index: number
+  onClose: () => void; onPrev: () => void; onNext: () => void
+}) {
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'ArrowLeft') onPrev()
+      if (e.key === 'ArrowRight') onNext()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => { document.body.style.overflow = ''; window.removeEventListener('keydown', onKey) }
+  }, [onClose, onPrev, onNext])
+
+  const photo = photos[index]
+  return (
+    <div className="hd__lightbox" onClick={onClose}>
+      <button className="hd__lightbox-close" onClick={onClose}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="18" height="18">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+      </button>
+      {photos.length > 1 && (
+        <button className="hd__lightbox-prev" onClick={e => { e.stopPropagation(); onPrev() }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="22" height="22">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
+      )}
+      <img key={photo.url} src={photo.url} alt="" className="hd__lightbox-img" onClick={e => e.stopPropagation()} />
+      {photos.length > 1 && (
+        <button className="hd__lightbox-next" onClick={e => { e.stopPropagation(); onNext() }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="22" height="22">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
+      )}
+      <div className="hd__lightbox-counter">{index + 1} / {photos.length}</div>
+    </div>
+  )
+}
+
+function GalleryCell({ url, index, onOpen, extra }: {
+  url: string; index: number; onOpen: (i: number) => void; extra?: number
+}) {
+  return (
+    <div
+      className="hd__gcell"
+      style={{ backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+      onClick={() => onOpen(index)}
+    >
+      {extra !== undefined && extra > 0 && (
+        <div className="hd__gcell-overlay"><span>+{extra} more</span></div>
+      )}
+    </div>
+  )
+}
+
+function Gallery({ photos, onOpen }: { photos: Photo[]; onOpen: (i: number) => void }) {
+  const n = photos.length
+  if (n === 0) return (
+    <div className="hd__gallery-wrap">
+      <div className="hd__gallery hd__gallery--1">
+        <div className="hd__gcell" style={{ background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" width="48" height="48">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="hd__gallery-wrap">
+      {n === 1 && (
+        <div className="hd__gallery hd__gallery--1">
+          <GalleryCell url={photos[0].url} index={0} onOpen={onOpen} />
+        </div>
+      )}
+      {n === 2 && (
+        <div className="hd__gallery hd__gallery--2">
+          <GalleryCell url={photos[0].url} index={0} onOpen={onOpen} />
+          <GalleryCell url={photos[1].url} index={1} onOpen={onOpen} />
+        </div>
+      )}
+      {n === 3 && (
+        <div className="hd__gallery hd__gallery--3">
+          <GalleryCell url={photos[0].url} index={0} onOpen={onOpen} />
+          <div className="hd__gallery-col">
+            <GalleryCell url={photos[1].url} index={1} onOpen={onOpen} />
+            <GalleryCell url={photos[2].url} index={2} onOpen={onOpen} />
+          </div>
+        </div>
+      )}
+      {n === 4 && (
+        <div className="hd__gallery hd__gallery--4">
+          <GalleryCell url={photos[0].url} index={0} onOpen={onOpen} />
+          <GalleryCell url={photos[1].url} index={1} onOpen={onOpen} />
+          <GalleryCell url={photos[2].url} index={2} onOpen={onOpen} />
+          <GalleryCell url={photos[3].url} index={3} onOpen={onOpen} />
+        </div>
+      )}
+      {n >= 5 && (
+        <div className="hd__gallery hd__gallery--5">
+          <GalleryCell url={photos[0].url} index={0} onOpen={onOpen} />
+          <div className="hd__gallery-grid2">
+            <GalleryCell url={photos[1].url} index={1} onOpen={onOpen} />
+            <GalleryCell url={photos[2].url} index={2} onOpen={onOpen} />
+            <GalleryCell url={photos[3].url} index={3} onOpen={onOpen} />
+            <GalleryCell url={photos[4].url} index={4} onOpen={onOpen} extra={n > 5 ? n - 5 : 0} />
+          </div>
+        </div>
+      )}
+      <button className="hd__gallery-all-btn" onClick={() => onOpen(0)}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+        </svg>
+        Show all {n} photo{n !== 1 ? 's' : ''}
+      </button>
+    </div>
+  )
 }
 
 export default function BuySellDetail() {
-  const { id } = useParams()
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const item = FULL_LISTINGS.find(l => l.id === Number(id)) ?? FULL_LISTINGS[0]
-  const related = LISTINGS.filter(l => l.id !== item.id).slice(0, 4)
 
-  const [activeImg, setActiveImg] = useState(0)
+  const [listing, setListing] = useState<ListingDetail | null>(null)
+  const [related, setRelated] = useState<RelatedListing[]>([])
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
   const [saved, setSaved] = useState(false)
   const [msgOpen, setMsgOpen] = useState(false)
   const [msg, setMsg] = useState('')
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+
+  useEffect(() => {
+    if (!id) return
+    setLoading(true)
+    apiGet<{ data: ListingDetail }>(ENDPOINTS.marketplace.view(id))
+      .then(res => setListing(res.data))
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false))
+
+    apiGet<{ data: RelatedListing[] }>(ENDPOINTS.marketplace.list)
+      .then(res => setRelated(res.data.filter(l => l.id !== id).slice(0, 4)))
+      .catch(() => {})
+  }, [id])
+
+  if (loading) return (
+    <>
+      <Navbar />
+      <main className="hd" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#888' }}>Loading listing…</p>
+      </main>
+      <Footer />
+    </>
+  )
+
+  if (notFound || !listing) return (
+    <>
+      <Navbar />
+      <main className="hd" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#888' }}>Listing not found.</p>
+      </main>
+      <Footer />
+    </>
+  )
+
+  const photos = listing.photos ?? []
+  const condLabel = CONDITION_LABEL[listing.condition] ?? listing.condition
+  const condColor = CONDITION_COLOR[listing.condition] ?? '#9ca3af'
+  const location = [listing.city, listing.country].filter(Boolean).join(', ')
+  const sellerName = listing.full_name ?? 'Seller'
+  const sellerInitial = sellerName.charAt(0).toUpperCase()
+  const memberSince = listing.member_since
+    ? new Date(listing.member_since).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    : ''
 
   return (
     <>
       <Navbar />
-      <main className="bsd">
+      <main className="hd">
 
-        {/* Breadcrumb */}
-        <div className="bsd__breadcrumb-bar">
-          <div className="bsd__breadcrumb-inner">
-            <nav className="bsd__breadcrumb">
+        {/* ── Hero section ── */}
+        <div className="hd__hero-section">
+
+          {/* Breadcrumb */}
+          <div className="hd__top-row">
+            <nav className="hd__breadcrumb">
               <Link to="/">Home</Link>
-              <span>/</span>
+              <span>›</span>
               <Link to="/buy-sell">Buy &amp; Sell</Link>
-              <span>/</span>
-              <span>{item.title}</span>
+              <span>›</span>
+              <span className="hd__breadcrumb-current">{listing.title}</span>
             </nav>
           </div>
+
+          {/* Title row */}
+          <div className="hd__title-row">
+            <h1 className="hd__title">{listing.title}</h1>
+            <div className="hd__title-actions">
+              <button className={`hd__save-btn${saved ? ' hd__save-btn--active' : ''}`} onClick={() => setSaved(s => !s)}>
+                ♥ Save
+              </button>
+              <button className="hd__share-btn">↗ Share</button>
+            </div>
+          </div>
+
+          {/* Meta */}
+          <div className="hd__meta">
+            {location && <span>📍 {location}</span>}
+            <span className="hd__meta-dot">·</span>
+            <span>{timeAgo(listing.created_at)}</span>
+          </div>
+
+          {/* Chips */}
+          <div className="hd__chips">
+            <span className="hd__chip" style={{ background: condColor + '18', color: condColor }}>{condLabel}</span>
+            {listing.category_name && <span className="hd__chip">{listing.category_name}</span>}
+            {listing.subcategory_name && <span className="hd__chip">{listing.subcategory_name}</span>}
+            {listing.is_free ? <span className="hd__chip" style={{ background: '#e8f5e9', color: '#5dae61' }}>Free</span> : null}
+          </div>
+
+          {/* Gallery */}
+          <Gallery photos={photos} onOpen={i => { setLightboxIndex(i); setLightboxOpen(true) }} />
+
         </div>
 
-        <div className="bsd__body">
+        {/* ── White body card ── */}
+        <div className="hd__body-card">
+          <div className="hd__content">
 
-          {/* Left: photos + description */}
-          <div className="bsd__left">
+            {/* ── Left column ── */}
+            <div className="hd__left">
 
-            {/* Photo gallery */}
-            <div className="bsd__gallery">
-              <div className="bsd__gallery-main">
-                <img src={item.imgs[activeImg]} alt={item.title} className="bsd__gallery-main-img" />
-                <button className="bsd__gallery-save" onClick={() => setSaved(s => !s)} aria-label="Save">
-                  <svg viewBox="0 0 24 24" fill={saved ? '#e05252' : 'none'} stroke={saved ? '#e05252' : '#1a1a1a'} strokeWidth="2" width="20" height="20">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                  </svg>
-                  {saved ? 'Saved' : 'Save'}
-                </button>
+              {/* Summary */}
+              <div className="hd__summary">
+                <h2 className="hd__summary-title">
+                  {listing.category_name ?? 'Item'}{location ? ` · ${location}` : ''}
+                </h2>
+                <div className="hd__summary-stats">
+                  <span style={{ color: condColor, fontWeight: 700 }}>{condLabel}</span>
+                  <span className="hd__dot">·</span>
+                  {listing.subcategory_name && <><span>{listing.subcategory_name}</span><span className="hd__dot">·</span></>}
+                  <span>Posted {timeAgo(listing.created_at)}</span>
+                </div>
               </div>
-              {item.imgs.length > 1 && (
-                <div className="bsd__gallery-thumbs">
-                  {item.imgs.map((src, i) => (
-                    <button
-                      key={i}
-                      className={`bsd__gallery-thumb${activeImg === i ? ' bsd__gallery-thumb--active' : ''}`}
-                      onClick={() => setActiveImg(i)}
-                    >
-                      <img src={src} alt="" />
-                    </button>
+
+              {/* Description */}
+              <section className="hd__section">
+                <h3 className="hd__section-title">About this item</h3>
+                <p className="hd__about-text">{listing.description || 'No description provided.'}</p>
+              </section>
+
+              {/* Seller info */}
+              <section className="hd__section hd__host-section">
+                <div className="hd__host-info">
+                  <div className="hd__host-avatar">{sellerInitial}</div>
+                  <div className="hd__host-details">
+                    <div className="hd__host-name">Listed by {sellerName}</div>
+                    <div className="hd__host-since">
+                      {memberSince ? `Member since ${memberSince}` : 'Member'}
+                    </div>
+                  </div>
+                </div>
+                <div className="hd__host-meta">
+                  <div className="hd__host-meta-item">⚡ Usually responds quickly</div>
+                </div>
+              </section>
+
+              {/* Item details */}
+              <section className="hd__section hd__type-badges-section">
+                <div className="hd__type-badge">
+                  <span className="hd__type-badge-icon">🏷️</span>
+                  <span className="hd__type-badge-label">{condLabel}</span>
+                </div>
+                {listing.category_name && (
+                  <div className="hd__type-badge">
+                    <span className="hd__type-badge-icon">📦</span>
+                    <span className="hd__type-badge-label">{listing.category_name}</span>
+                  </div>
+                )}
+                {location && (
+                  <div className="hd__type-badge">
+                    <span className="hd__type-badge-icon">📍</span>
+                    <span className="hd__type-badge-label">{location}</span>
+                  </div>
+                )}
+              </section>
+
+              {/* Safety */}
+              <section className="hd__section">
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', background: '#f0fdf4', borderRadius: 10, border: '1px solid #bbf7d0' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#2a8a3d" strokeWidth="2" width="20" height="20" style={{ flexShrink: 0, marginTop: 1 }}>
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
+                  </svg>
+                  <p style={{ fontSize: 13, color: '#166534', margin: 0, lineHeight: 1.5 }}>
+                    Meet in a public place · Inspect the item before paying · Never send money in advance
+                  </p>
+                </div>
+              </section>
+
+            </div>
+
+            {/* ── Right sidebar ── */}
+            <aside className="hd__sidebar">
+              <div className="hd__sidebar-card">
+
+                <div className="hd__price-row">
+                  <span className="hd__price">{listing.is_free ? 'Free' : `€${Number(listing.price).toLocaleString()}`}</span>
+                </div>
+                <div className="hd__price-note" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ background: condColor + '18', color: condColor, fontWeight: 700, fontSize: 12, borderRadius: 20, padding: '2px 10px' }}>{condLabel}</span>
+                  {listing.category_name && <span style={{ color: '#9ca3af', fontSize: 12 }}>{listing.category_name}</span>}
+                </div>
+
+                {location && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#6b7280', margin: '10px 0' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="13" height="13">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    {location}
+                  </div>
+                )}
+
+                <button className="hd__book-btn" onClick={() => setMsgOpen(true)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: 6 }}>
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  Message Seller
+                </button>
+                <button className="hd__message-btn" onClick={() => setSaved(s => !s)}>
+                  <svg viewBox="0 0 24 24" fill={saved ? '#e05252' : 'none'} stroke={saved ? '#e05252' : 'currentColor'} strokeWidth="2" width="15" height="15" style={{ marginRight: 6 }}>
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                  {saved ? 'Saved' : 'Save to wishlist'}
+                </button>
+                <div className="hd__secure-badge">🛡️ Safe buying through 1 Euro Pass</div>
+
+              </div>
+            </aside>
+
+          </div>
+
+          {/* Lower grid */}
+          <div className="hd__lower-grid">
+            <section className="hd__section">
+              <h3 className="hd__section-title">Good to know</h3>
+              <div className="hd__good-to-know">
+                <div className="hd__gtk-col">
+                  {[
+                    'Meet in a public place for safety',
+                    'Inspect the item before paying',
+                    'Ask for a receipt when possible',
+                  ].map(tip => (
+                    <div key={tip} className="hd__gtk-item">
+                      <span className="hd__gtk-check hd__gtk-check--yes">✓</span>
+                      <span>{tip}</span>
+                    </div>
                   ))}
                 </div>
-              )}
-            </div>
-
-            {/* Description */}
-            <div className="bsd__section">
-              <h2 className="bsd__section-title">Description</h2>
-              <p className="bsd__desc">{item.desc}</p>
-            </div>
-
-            {/* Details table */}
-            <div className="bsd__section">
-              <h2 className="bsd__section-title">Item Details</h2>
-              <div className="bsd__details-table">
-                {[
-                  { label: 'Category', value: item.category },
-                  { label: 'Condition', value: item.condition },
-                  { label: 'Location', value: item.location },
-                  { label: 'Listed', value: item.time },
-                ].map(row => (
-                  <div key={row.label} className="bsd__details-row">
-                    <span className="bsd__details-label">{row.label}</span>
-                    <span className="bsd__details-value" style={row.label === 'Condition' ? { color: CONDITION_COLOR[row.value], fontWeight: 800 } : {}}>{row.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Safety tips */}
-            <div className="bsd__safety-banner">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#2a8a3d" strokeWidth="2" width="22" height="22" style={{ flexShrink: 0 }}>
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" />
-              </svg>
-              <p className="bsd__safety-text">Meet in a public place · Inspect before buying · Never share personal details before agreeing</p>
-            </div>
-
-          </div>
-
-          {/* Right: price + seller */}
-          <div className="bsd__right">
-
-            {/* Price card */}
-            <div className="bsd__price-card">
-              <div className="bsd__price-top">
-                <span className="bsd__price">€{item.price}</span>
-                <span className="bsd__condition-badge" style={{ background: CONDITION_COLOR[item.condition] + '22', color: CONDITION_COLOR[item.condition] }}>
-                  {item.condition}
-                </span>
-              </div>
-              <h1 className="bsd__item-title">{item.title}</h1>
-              <div className="bsd__location-row">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="14" height="14"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                <span className="bsd__location">{item.location}</span>
-                <span className="bsd__time">· {item.time}</span>
-              </div>
-              <button className="bsd__contact-btn" onClick={() => setMsgOpen(true)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                Message Seller
-              </button>
-              <button className="bsd__save-btn" onClick={() => setSaved(s => !s)}>
-                <svg viewBox="0 0 24 24" fill={saved ? '#e05252' : 'none'} stroke={saved ? '#e05252' : 'currentColor'} strokeWidth="2" width="16" height="16">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-                {saved ? 'Saved' : 'Save to wishlist'}
-              </button>
-            </div>
-
-            {/* Seller card */}
-            <div className="bsd__seller-card">
-              <h3 className="bsd__seller-heading">Seller</h3>
-              <div className="bsd__seller-row">
-                <img src={item.sellerAvatar} alt={item.seller} className="bsd__seller-avatar" />
-                <div>
-                  <p className="bsd__seller-name">{item.seller}</p>
-                  <p className="bsd__seller-joined">Member since {item.sellerJoined}</p>
+                <div className="hd__gtk-col">
+                  {[
+                    'Never pay before seeing the item',
+                    'Do not share personal bank details',
+                  ].map(tip => (
+                    <div key={tip} className="hd__gtk-item">
+                      <span className="hd__gtk-check hd__gtk-check--no">✗</span>
+                      <span>{tip}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="bsd__seller-badges">
-                <span className="bsd__seller-badge">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="12" height="12"><polyline points="20 6 9 17 4 12" /></svg>
-                  Verified student
-                </span>
-                <span className="bsd__seller-badge">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="12" height="12"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                  Responds quickly
-                </span>
+            </section>
+
+            <section className="hd__section">
+              <h3 className="hd__section-title">About this listing</h3>
+              <p className="hd__about-text">Posted {timeAgo(listing.created_at)} · Listing ID: {listing.id.slice(0, 8).toUpperCase()}</p>
+            </section>
+          </div>
+
+          {/* Verify bar */}
+          <div className="hd__verify-bar">
+            <div className="hd__verify-badge">
+              <div className="hd__verify-shield">🛡️</div>
+              <div>
+                <div className="hd__verify-title">Buy safely on 1 Euro Pass</div>
+                <div className="hd__verify-sub">We verify student listings to keep the marketplace safe and trustworthy.</div>
               </div>
             </div>
-
+            <div className="hd__verify-checks">
+              <div className="hd__verify-check">✓ Student verified</div>
+              <div className="hd__verify-check">✓ Listing reviewed</div>
+              <div className="hd__verify-check">✓ Secure messaging</div>
+            </div>
           </div>
-        </div>
+
+          <div className="hd__report">
+            <button className="hd__report-btn">🚩 Something doesn't look right? Report this listing</button>
+          </div>
+
+        </div>{/* end hd__body-card */}
 
         {/* Related listings */}
-        <div className="bsd__related">
-          <div className="bsd__related-inner">
-            <h2 className="bsd__related-title">More listings you might like</h2>
-            <div className="bsd__related-grid">
-              {related.map(l => (
-                <div key={l.id} className="bs__card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/buy-sell/${l.id}`)}>
-                  <div className="bs__card-img-wrap">
-                    <img src={l.img} alt={l.title} className="bs__card-img" />
-                  </div>
-                  <div className="bs__card-body">
-                    <span className="bs__card-price">€{l.price}</span>
-                    <div className="bs__card-title-row">
-                      <span className="bs__card-title">{l.title}</span>
-                      <span className="bs__card-condition" style={{ color: CONDITION_COLOR[l.condition] }}>{l.condition}</span>
+        {related.length > 0 && (
+          <div style={{ background: '#f5f4ed', padding: '32px 0' }}>
+            <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px' }}>
+              <h2 style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 800, fontSize: 20, color: '#1a1a1a', marginBottom: 20 }}>
+                More listings you might like
+              </h2>
+              <div className="bsd__related-grid">
+                {related.map(l => {
+                  const rCondLabel = CONDITION_LABEL[l.condition] ?? l.condition
+                  const rCondColor = CONDITION_COLOR[l.condition] ?? '#9ca3af'
+                  const rLocation = [l.city, l.country].filter(Boolean).join(', ')
+                  return (
+                    <div key={l.id} className="bs__card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/buy-sell/${l.id}`)}>
+                      <div className="bs__card-img-wrap">
+                        {l.cover_photo
+                          ? <img src={l.cover_photo} alt={l.title} className="bs__card-img" />
+                          : <div className="bs__card-img" style={{ background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" width="32" height="32">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+                              </svg>
+                            </div>
+                        }
+                      </div>
+                      <div className="bs__card-body">
+                        <span className="bs__card-price">{l.is_free ? 'Free' : `€${Number(l.price).toLocaleString()}`}</span>
+                        <div className="bs__card-title-row">
+                          <span className="bs__card-title">{l.title}</span>
+                          <span className="bs__card-condition" style={{ color: rCondColor }}>{rCondLabel}</span>
+                        </div>
+                        <div className="bs__card-meta">
+                          {rLocation && <span className="bs__card-location">📍 {rLocation}</span>}
+                          <span className="bs__card-time">{timeAgo(l.created_at)}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="bs__card-meta">
-                      <span className="bs__card-location">📍 {l.location}</span>
-                      <span className="bs__card-time">{l.time}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  )
+                })}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
       </main>
+
+      {lightboxOpen && photos.length > 0 && (
+        <Lightbox
+          photos={photos}
+          index={lightboxIndex}
+          onClose={() => setLightboxOpen(false)}
+          onPrev={() => setLightboxIndex(i => (i - 1 + photos.length) % photos.length)}
+          onNext={() => setLightboxIndex(i => (i + 1) % photos.length)}
+        />
+      )}
+
       <Footer />
 
       {/* Message modal */}
@@ -203,14 +521,16 @@ export default function BuySellDetail() {
         <div className="bsd-modal-overlay" onClick={() => setMsgOpen(false)}>
           <div className="bsd-modal" onClick={e => e.stopPropagation()}>
             <div className="bsd-modal__header">
-              <h3 className="bsd-modal__title">Message {item.seller}</h3>
+              <h3 className="bsd-modal__title">Message {sellerName.split(' ')[0]}</h3>
               <button className="bsd-modal__close" onClick={() => setMsgOpen(false)}>✕</button>
             </div>
-            <p className="bsd-modal__item-ref">Re: {item.title} — €{item.price}</p>
+            <p className="bsd-modal__item-ref">
+              Re: {listing.title}{!listing.is_free ? ` — €${Number(listing.price).toLocaleString()}` : ''}
+            </p>
             <textarea
               className="bsd-modal__textarea"
               rows={4}
-              placeholder={`Hi ${item.seller.split(' ')[0]}, is this still available?`}
+              placeholder={`Hi ${sellerName.split(' ')[0]}, is this still available?`}
               value={msg}
               onChange={e => setMsg(e.target.value)}
             />

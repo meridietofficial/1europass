@@ -6,11 +6,12 @@ import { useAuth } from '../context/AuthContext'
 type AuthMode = 'login' | 'register' | null
 
 const NAV_LINKS = [
-  { label: 'Categories',     to: '/categories' },
-  { label: 'For Businesses', to: '/for-businesses' },
-  { label: 'Blog',           to: '/blog' },
-  { label: 'About us',       to: '/about' },
-  { label: 'Careers',        to: '/careers' },
+  { label: 'Home',       to: '/' },
+  { label: 'Categories', to: '/categories' },
+  { label: 'Blog',       to: '/blog' },
+  { label: 'About us',   to: '/about' },
+  { label: 'Careers',    to: '/careers' },
+  { label: 'Contact Us', to: '/contact' },
 ]
 
 export default function Navbar() {
@@ -45,9 +46,9 @@ export default function Navbar() {
     <>
       <nav className="navbar">
         <div className="navbar__inner">
-          <a href="/" className="navbar__logo">
+          <Link to="/" className="navbar__logo">
             <img src="/logo.svg" alt="1 Euro Pass" className="navbar__logo-img" />
-          </a>
+          </Link>
 
           {/* Desktop nav */}
           <nav className="navbar__nav">
@@ -55,7 +56,7 @@ export default function Navbar() {
               <Link
                 key={to}
                 to={to}
-                className={pathname.startsWith(to) ? 'active' : ''}
+                className={(to === '/' ? pathname === '/' : pathname.startsWith(to)) ? 'active' : ''}
               >
                 {label}
               </Link>
@@ -64,20 +65,16 @@ export default function Navbar() {
 
           {/* Desktop actions */}
           <div className="navbar__actions">
-            <a href="/profile" className="navbar__lang">
+            {/* <a href="/profile" className="navbar__lang">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
                 <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
               </svg>
-              <span>
-                {user && (user.city || user.country)
-                  ? [user.city, user.country].filter(Boolean).join(', ')
-                  : 'EN'}
-              </span>
+              <span>EN</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 12, height: 12 }}>
                 <polyline points="6 9 12 15 18 9" />
               </svg>
-            </a>
+            </a> */}
 
             {user ? (
               <div className="navbar__user-wrap" ref={dropdownRef}>
@@ -100,13 +97,20 @@ export default function Navbar() {
 
                 {dropdownOpen && (
                   <div className="navbar__dropdown">
-                    <a href="/profile" className="navbar__dropdown-item" onClick={() => setDropdownOpen(false)}>
+                    <Link to="/profile/post" className="navbar__dropdown-item" onClick={() => setDropdownOpen(false)}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      Post a Listing
+                    </Link>
+                    <Link to="/profile" className="navbar__dropdown-item" onClick={() => setDropdownOpen(false)}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="8" r="4" />
                         <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
                       </svg>
                       Profile
-                    </a>
+                    </Link>
                     <button
                       type="button"
                       className="navbar__dropdown-item navbar__dropdown-item--logout"
@@ -152,7 +156,7 @@ export default function Navbar() {
               <Link
                 key={to}
                 to={to}
-                className={`navbar__mobile-link${pathname.startsWith(to) ? ' active' : ''}`}
+                className={`navbar__mobile-link${(to === '/' ? pathname === '/' : pathname.startsWith(to)) ? ' active' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
                 {label}
@@ -163,7 +167,7 @@ export default function Navbar() {
           <div className="navbar__mobile-actions">
             {user ? (
               <>
-                <a href="/profile" className="navbar__mobile-profile" onClick={() => setMenuOpen(false)}>
+                <Link to="/profile" className="navbar__mobile-profile" onClick={() => setMenuOpen(false)}>
                   <div className="navbar__avatar">
                     {user.profile_picture
                       ? <img src={user.profile_picture} alt={user.full_name} className="navbar__avatar-img" />
@@ -171,7 +175,7 @@ export default function Navbar() {
                     }
                   </div>
                   <span>{user.full_name}</span>
-                </a>
+                </Link>
                 <button
                   type="button"
                   className="navbar__mobile-logout"

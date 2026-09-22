@@ -14,6 +14,9 @@ interface User {
   city: string | null
   dob: string | null
   language: string | null
+  user_type: 'student' | 'other'
+  about_me: string | null
+  nationality: string | null
   role: string
   created_at: string
 }

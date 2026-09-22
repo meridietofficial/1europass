@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import CategoryComingSoon from '../components/CategoryComingSoon'
 import { useCategoryActive } from '../hooks/useCategoryActive'
+import { apiGet } from '../api/client'
+import { ENDPOINTS } from '../api/endpoints'
 
 const CATEGORIES = [
   { name: 'Furniture & Home',            img: '/cat-bs-furniture.svg',    bg: '#FFFFFF' },
@@ -22,36 +24,60 @@ const CATEGORIES = [
   { name: 'Others',                      img: '/cat-bs-fashion.svg',      bg: '#FFFFFF' },
 ]
 
-export const LISTINGS = [
-  { id: 1,  title: 'MacBook Air M1',       price: 250, condition: 'LIKE NEW', location: 'Dublin, Ireland',      time: '2h ago',  img: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80' },
-  { id: 2,  title: '2-Seater Sofa',        price: 120, condition: 'GOOD',     location: 'Berlin, Germany',      time: '5h ago',  img: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80' },
-  { id: 3,  title: 'Trek Hybrid Bike',     price: 90,  condition: 'GOOD',     location: 'Amsterdam, Neth...',   time: '1d ago',  img: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=400&q=80' },
-  { id: 4,  title: 'Business Books Set',   price: 25,  condition: 'LIKE NEW', location: 'Madrid, Spain',        time: '1d ago',  img: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=400&q=80' },
-  { id: 5,  title: 'Sony WH-CH510 He...', price: 35,  condition: 'GOOD',     location: 'Paris, France',        time: '2d ago',  img: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80' },
-  { id: 6,  title: 'Nike Air Force 1',     price: 45,  condition: 'LIKE NEW', location: 'Milan, Italy',         time: '2d ago',  img: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80' },
-  { id: 7,  title: 'IKEA Desk Lamp',       price: 18,  condition: 'GOOD',     location: 'Prague, Czechia',      time: '3d ago',  img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80' },
-  { id: 8,  title: 'Cookware Set (5 Pcs)', price: 40,  condition: 'LIKE NEW', location: 'Vienna, Austria',      time: '3d ago',  img: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&q=80' },
-]
-
 const POPULAR_SEARCHES = ['iPhone', 'Bicycle', 'Desk', 'Chair', 'Textbooks', 'Headphones', 'Shoes', 'Laptop', 'Fridge']
 
+const CONDITION_LABEL: Record<string, string> = {
+  'new': 'NEW', 'like-new': 'LIKE NEW', 'good': 'GOOD', 'fair': 'FAIR', 'used': 'USED',
+}
+
 const CONDITION_COLOR: Record<string, string> = {
-  'LIKE NEW': '#5dae61',
-  'GOOD':     '#f0a500',
+  'new': '#5dae61', 'like-new': '#5dae61', 'good': '#f0a500', 'fair': '#e87d00', 'used': '#9ca3af',
+}
+
+interface ApiListing {
+  id: string
+  title: string
+  price: number
+  is_free: number
+  condition: string
+  city: string | null
+  country: string | null
+  cover_photo: string | null
+  category_name: string | null
+  created_at: string
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (diff < 3600) return `${Math.floor(diff / 60) || 1}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return `${Math.floor(diff / 604800)}w ago`
 }
 
 export default function BuySell() {
   const { active, loading } = useCategoryActive('buy-and-sell')
-  const [favorites, setFavorites] = useState<number[]>([])
+  const [favorites, setFavorites] = useState<string[]>([])
   const [search, setSearch] = useState('')
   const [showAllCats, setShowAllCats] = useState(false)
+  const [listings, setListings] = useState<ApiListing[]>([])
+  const [listingsLoading, setListingsLoading] = useState(true)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    apiGet<{ data: ApiListing[] }>(ENDPOINTS.marketplace.list)
+      .then(res => setListings(res.data))
+      .catch(() => {})
+      .finally(() => setListingsLoading(false))
+  }, [])
 
   if (loading) return null
   if (!active) return <CategoryComingSoon name="Buy & Sell" />
 
-  const toggleFav = (id: number) =>
+  const toggleFav = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
     setFavorites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id])
+  }
 
   return (
     <>
@@ -164,35 +190,57 @@ export default function BuySell() {
                 </div>
 
                 {/* LISTINGS GRID */}
-                <div className="bs__grid">
-                  {LISTINGS.map(l => (
-                    <div key={l.id} className="bs__card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/buy-sell/${l.id}`)}>
-                      <div className="bs__card-img-wrap">
-                        <img src={l.img} alt={l.title} className="bs__card-img" />
-                        <button
-                          className={`bs__card-fav${favorites.includes(l.id) ? ' bs__card-fav--active' : ''}`}
-                          onClick={() => toggleFav(l.id)}
-                        >♥</button>
-                      </div>
-                      <div className="bs__card-body">
-                        <span className="bs__card-price">€{l.price}</span>
-                        <div className="bs__card-title-row">
-                          <span className="bs__card-title">{l.title}</span>
-                          <span className="bs__card-condition" style={{ color: CONDITION_COLOR[l.condition] }}>{l.condition}</span>
-                        </div>
-                        <div className="bs__card-meta">
-                          <span className="bs__card-location">📍 {l.location}</span>
-                          <span className="bs__card-time">{l.time}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {listingsLoading && (
+                  <div style={{ padding: '40px 0', textAlign: 'center', color: '#6b7280', fontSize: 14 }}>Loading listings...</div>
+                )}
 
-                {/* LOAD MORE */}
-                <div className="bs__load-more-wrap">
-                  <button className="bs__load-more">Load more listings ↓</button>
-                </div>
+                {!listingsLoading && listings.length === 0 && (
+                  <div style={{ padding: '48px 0', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" style={{ display: 'block', margin: '0 auto 12px' }}>
+                      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" />
+                    </svg>
+                    No listings yet. Be the first to post!
+                  </div>
+                )}
+
+                {!listingsLoading && listings.length > 0 && (
+                  <div className="bs__grid">
+                    {listings.map(l => {
+                      const condLabel = CONDITION_LABEL[l.condition] ?? l.condition.toUpperCase()
+                      const condColor = CONDITION_COLOR[l.condition] ?? '#9ca3af'
+                      const location = [l.city, l.country].filter(Boolean).join(', ')
+                      return (
+                        <div key={l.id} className="bs__card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/buy-sell/${l.id}`)}>
+                          <div className="bs__card-img-wrap">
+                            {l.cover_photo
+                              ? <img src={l.cover_photo} alt={l.title} className="bs__card-img" />
+                              : <div className="bs__card-img" style={{ background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" width="36" height="36">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
+                                  </svg>
+                                </div>
+                            }
+                            <button
+                              className={`bs__card-fav${favorites.includes(l.id) ? ' bs__card-fav--active' : ''}`}
+                              onClick={e => toggleFav(e, l.id)}
+                            >♥</button>
+                          </div>
+                          <div className="bs__card-body">
+                            <span className="bs__card-price">{l.is_free ? 'Free' : `€${Number(l.price).toLocaleString()}`}</span>
+                            <div className="bs__card-title-row">
+                              <span className="bs__card-title">{l.title}</span>
+                              <span className="bs__card-condition" style={{ color: condColor }}>{condLabel}</span>
+                            </div>
+                            <div className="bs__card-meta">
+                              {location && <span className="bs__card-location">📍 {location}</span>}
+                              <span className="bs__card-time">{timeAgo(l.created_at)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
 
             </div>

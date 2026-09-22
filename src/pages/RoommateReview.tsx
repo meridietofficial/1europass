@@ -1,22 +1,65 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { apiGet, apiPatch } from '../api/client'
+import { ENDPOINTS } from '../api/endpoints'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
-const MOCK_PHOTOS = [
-  'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80',
-  'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=400&q=80',
-  'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&q=80',
-  'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=400&q=80',
-  'https://images.unsplash.com/photo-1615529182904-14819c35db37?w=400&q=80',
-  'https://images.unsplash.com/photo-1600210492493-0946911123ea?w=400&q=80',
-]
+interface RoommateListing {
+  id: string
+  title: string
+  status: string
+  intent: string
+  room_type: string
+  description: string | null
+  street_address: string | null
+  apartment_floor: string | null
+  postal_code: string | null
+  city: string | null
+  state_region: string | null
+  country: string | null
+  rent: number | null
+  budget_max: number | null
+  size_sqm: number | null
+  utilities_included: number | null
+  available_now: number
+  available_date: string | null
+  furnished: string | null
+  pets_allowed: number | null
+  smoking_allowed: number | null
+  gender_preference: string | null
+  housemates: string | null
+  age_min: number | null
+  age_max: number | null
+  included_electricity: number
+  included_water: number
+  included_heating: number
+  included_internet: number
+  included_gas: number
+  included_other: number
+  included_other_spec: string | null
+  nearby_supermarket: number
+  nearby_metro: number
+  nearby_bus_stop: number
+  nearby_train_station: number
+  nearby_university_flag: number
+  nearby_hospital: number
+  nearby_gym: number
+  nearby_cafe: number
+  nearby_restaurant: number
+  nearby_university: string | null
+  decl_info_accurate: number
+  decl_photos_current: number
+  decl_agreed_terms: number
+  share_profile: number
+  photos: { id: number; url: string; sort_order: number }[]
+}
 
-const LIFESTYLE_TAGS = [
-  'Cleanliness: High', 'Sleep: Night Owl', 'Smoking: No',
-  'Drinking: Occasionally', 'Cooking: Often', 'Pets: No Pets',
-  'Music: Moderate', 'Guests: Sometimes',
-]
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
 
 const HOW_IT_WORKS = [
   'Students will find your listing',
@@ -57,13 +100,85 @@ function ReviewRow({ icon, title, editTo, children, last }: {
 
 export default function RoommateReview() {
   const navigate = useNavigate()
-  const [autoTranslate, setAutoTranslate] = useState(true)
+  const { id } = useParams<{ id: string }>()
+  const [listing, setListing] = useState<RoommateListing | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [publishing, setPublishing] = useState(false)
 
-  const visiblePhotos = MOCK_PHOTOS.slice(0, PHOTO_PREVIEW_COUNT)
-  const extraPhotos = MOCK_PHOTOS.length - PHOTO_PREVIEW_COUNT
+  useEffect(() => {
+    if (!id) return
+    apiGet<{ success: boolean; data: RoommateListing }>(ENDPOINTS.roommates.get(id))
+      .then(res => setListing(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [id])
 
-  const step1Route = '/profile/post/roommates'
-  const step2Route = '/profile/post/roommates/preferences'
+  async function handlePublish() {
+    if (!id) return
+    setPublishing(true)
+    try {
+      await apiPatch(ENDPOINTS.roommates.status(id), { status: 'active' })
+      navigate('/profile#listings')
+    } catch {
+      alert('Failed to publish. Please try again.')
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  const step1Route = id ? `/profile/post/roommates/edit/${id}` : '/profile/post/roommates'
+  const step2Route = id ? `/profile/post/roommates/edit/${id}/preferences` : '/profile/post/roommates'
+
+  const isNeedRoom = listing?.intent === 'need-room'
+
+  const photos = listing?.photos ?? []
+  const visiblePhotos = photos.slice(0, PHOTO_PREVIEW_COUNT)
+  const extraPhotos = photos.length - PHOTO_PREVIEW_COUNT
+
+  const includedBills = listing ? [
+    listing.included_electricity && 'Electricity',
+    listing.included_water && 'Water',
+    listing.included_heating && 'Heating',
+    listing.included_internet && 'Wi-Fi',
+    listing.included_gas && 'Gas',
+    listing.included_other && (listing.included_other_spec || 'Other'),
+  ].filter(Boolean) as string[] : []
+
+  const nearbyPlaces = listing ? [
+    listing.nearby_supermarket && '🛒 Supermarket',
+    listing.nearby_metro && '🚇 Metro',
+    listing.nearby_bus_stop && '🚌 Bus stop',
+    listing.nearby_train_station && '🚆 Train station',
+    listing.nearby_university_flag && '🏫 University',
+    listing.nearby_hospital && '🏥 Hospital',
+    listing.nearby_gym && '🏋️ Gym',
+    listing.nearby_cafe && '☕ Cafes',
+    listing.nearby_restaurant && '🍽️ Restaurants',
+  ].filter(Boolean) as string[] : []
+
+  const declarations = listing ? [
+    listing.decl_info_accurate && 'The information provided is accurate.',
+    listing.decl_photos_current && 'The photos represent the current condition of the property.',
+    listing.decl_agreed_terms && 'I agree to the 1 Euro Pass housing terms.',
+  ].filter(Boolean) as string[] : []
+
+  const priceDisplay = isNeedRoom
+    ? (listing?.budget_max ? `Budget up to €${listing.budget_max}/month` : null)
+    : (listing?.rent ? `€${listing.rent}/month` : null)
+
+  const availabilityDisplay = listing?.available_now
+    ? (isNeedRoom ? 'Can move immediately' : 'Available immediately')
+    : listing?.available_date ? `${isNeedRoom ? 'Can move from' : 'Available from'} ${formatDate(listing.available_date)}` : null
+
+  if (loading) return (
+    <>
+      <Navbar />
+      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', fontSize: 15 }}>
+        Loading listing…
+      </div>
+      <Footer />
+    </>
+  )
 
   return (
     <>
@@ -84,7 +199,6 @@ export default function RoommateReview() {
               <p className="cl-hero__sub">List your place and connect with students across Europe.</p>
             </div>
             <div className="cl-steps">
-              {/* Step 1 done */}
               <div className="cl-step">
                 <div className="cl-step__circle cl-step__circle--done">
                   <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" width="13" height="13"><polyline points="20 6 9 17 4 12" /></svg>
@@ -98,7 +212,6 @@ export default function RoommateReview() {
                 </div>
               </div>
               <div className="cl-steps__line cl-steps__line--done" />
-              {/* Step 2 done */}
               <div className="cl-step">
                 <div className="cl-step__circle cl-step__circle--done">
                   <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" width="13" height="13"><polyline points="20 6 9 17 4 12" /></svg>
@@ -115,7 +228,6 @@ export default function RoommateReview() {
                 </div>
               </div>
               <div className="cl-steps__line cl-steps__line--done" />
-              {/* Step 3 active */}
               <div className="cl-step is-active">
                 <div className="cl-step__circle">3</div>
                 <div className="cl-step__icon-wrap">
@@ -137,7 +249,6 @@ export default function RoommateReview() {
           <div className="cl-body">
             <div className="cl-left">
 
-              {/* Review header */}
               <div style={{ padding: '8px 20px' }}>
                 <div className="crv-review-header">
                   <div>
@@ -162,157 +273,210 @@ export default function RoommateReview() {
 
               <div style={{ padding: '0 20px' }} className="crv-sections">
 
-                {/* What I want to do */}
+                {/* Listing Title */}
+                <ReviewRow
+                  icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>}
+                  title="Listing Title"
+                  editTo={step1Route}
+                >
+                  <p className="crv-row__detail">{listing?.title || '—'}</p>
+                </ReviewRow>
+
+                {/* Intent */}
                 <ReviewRow
                   icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><circle cx="12" cy="8" r="4" /><path d="M20 21a8 8 0 1 0-16 0" /></svg>}
                   title="What I want to do"
                   editTo={step1Route}
                 >
-                  <p className="crv-row__detail">I Have a Room</p>
+                  <p className="crv-row__detail">
+                    {listing?.intent === 'have-room' ? 'I Have a Room' : listing?.intent === 'need-room' ? 'I Need a Room' : '—'}
+                  </p>
                 </ReviewRow>
 
-                {/* Room / Flat Details */}
+                {/* Room Details */}
                 <ReviewRow
                   icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>}
-                  title="Room / Flat Details"
+                  title="Room Details"
                   editTo={step1Route}
                 >
-                  <p className="crv-row__detail">Private Room • 2 people in flat (including you)</p>
-                  <p className="crv-row__detail">De Pijp, Amsterdam • Gender preference: Female Only</p>
+                  <p className="crv-row__detail">
+                    {[
+                      listing?.room_type === 'private' ? 'Private Room' : listing?.room_type === 'shared' ? 'Shared Room' : null,
+                      listing?.size_sqm && !isNeedRoom ? `${listing.size_sqm} m²` : null,
+                      listing?.housemates && !isNeedRoom ? `${listing.housemates} housemate(s)` : null,
+                    ].filter(Boolean).join(' • ') || '—'}
+                  </p>
+                  {!isNeedRoom && (listing?.street_address || listing?.city) && (
+                    <p className="crv-row__detail">
+                      {[
+                        listing?.street_address,
+                        listing?.apartment_floor ? `Floor ${listing.apartment_floor}` : null,
+                        listing?.city,
+                        listing?.postal_code,
+                        listing?.country,
+                      ].filter(Boolean).join(', ')}
+                    </p>
+                  )}
+                  {isNeedRoom && (listing?.city || listing?.country) && (
+                    <p className="crv-row__detail">
+                      {[listing?.city, listing?.country].filter(Boolean).join(', ')}
+                    </p>
+                  )}
+                  <p className="crv-row__detail">
+                    {[
+                      listing?.gender_preference ? `Gender preference: ${listing.gender_preference}` : null,
+                      listing?.age_min && listing?.age_max && !isNeedRoom ? `Age: ${listing.age_min}–${listing.age_max}` : null,
+                    ].filter(Boolean).join(' • ') || null}
+                  </p>
                 </ReviewRow>
 
-                {/* Budget & Availability */}
+                {/* Pricing & Availability */}
                 <ReviewRow
                   icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>}
-                  title="Budget &amp; Availability"
+                  title={isNeedRoom ? 'Budget & Availability' : 'Pricing & Availability'}
                   editTo={step1Route}
                 >
-                  <p className="crv-row__detail">€650 / month • Available from 15 Jun 2025 • Min. stay: 3 Months</p>
+                  <p className="crv-row__detail">
+                    {[priceDisplay, availabilityDisplay].filter(Boolean).join(' • ') || '—'}
+                  </p>
+                  {!isNeedRoom && listing?.utilities_included != null && (
+                    <p className="crv-row__detail">Utilities: {listing.utilities_included ? 'Included' : 'Not included'}</p>
+                  )}
                 </ReviewRow>
 
-                {/* Furnishing & Bills */}
-                <ReviewRow
-                  icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3M2 11v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6M4 11h16" /></svg>}
-                  title="Furnishing &amp; Bills"
-                  editTo={step1Route}
-                >
-                  <p className="crv-row__detail">Fully Furnished</p>
-                  <div className="crv-tags-wrap" style={{ marginTop: 4 }}>
-                    {['Wi-Fi included', 'Electricity included', 'Heating included'].map(tag => (
-                      <span key={tag} className="crv-tag">{tag}</span>
-                    ))}
-                  </div>
-                </ReviewRow>
+                {/* Furnishing & Bills — have-room only */}
+                {!isNeedRoom && (
+                  <ReviewRow
+                    icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3M2 11v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6M4 11h16" /></svg>}
+                    title="Furnishing &amp; Bills"
+                    editTo={step1Route}
+                  >
+                    {listing?.furnished && <p className="crv-row__detail">{listing.furnished} Furnished</p>}
+                    {includedBills.length > 0 && (
+                      <div className="crv-tags-wrap" style={{ marginTop: 4 }}>
+                        {includedBills.map(tag => (
+                          <span key={tag} className="crv-tag">{tag} included</span>
+                        ))}
+                      </div>
+                    )}
+                    {!listing?.furnished && includedBills.length === 0 && <p className="crv-row__detail">—</p>}
+                  </ReviewRow>
+                )}
 
-                {/* Photos */}
-                <ReviewRow
-                  icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>}
-                  title="Photos"
-                  editTo={step1Route}
-                >
-                  <div className="crv-photos-row">
-                    {visiblePhotos.map((src, i) => (
-                      <img key={i} src={src} alt={`Photo ${i + 1}`} className="crv-photo-thumb" />
-                    ))}
-                    {extraPhotos > 0 && <div className="crv-photo-more">+{extraPhotos}</div>}
-                  </div>
-                </ReviewRow>
+                {/* Description */}
+                {listing?.description && (
+                  <ReviewRow
+                    icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>}
+                    title="Description"
+                    editTo={step1Route}
+                  >
+                    <p className="crv-row__detail">{listing.description}</p>
+                  </ReviewRow>
+                )}
 
-                {/* About You */}
-                <ReviewRow
-                  icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><circle cx="12" cy="8" r="4" /><path d="M20 21a8 8 0 1 0-16 0" /></svg>}
-                  title="About You"
-                  editTo={step2Route}
-                >
-                  <p className="crv-row__detail">University of Amsterdam • Computer Science (MSc) • 2nd Year</p>
-                  <p className="crv-row__detail">21 years old • Indian • Speaks English, Hindi, Dutch</p>
-                </ReviewRow>
-
-                {/* Lifestyle & Preferences */}
+                {/* Preferences */}
                 <ReviewRow
                   icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>}
-                  title="Lifestyle &amp; Preferences"
-                  editTo={step2Route}
+                  title="Preferences"
+                  editTo={step1Route}
                 >
-                  <div className="crv-tags-wrap">
-                    {LIFESTYLE_TAGS.map(tag => (
-                      <span key={tag} className="crv-tag">{tag}</span>
-                    ))}
-                  </div>
+                  {(listing?.pets_allowed != null || listing?.smoking_allowed != null || (isNeedRoom && listing?.furnished)) ? (
+                    <div className="crv-tags-wrap">
+                      {listing?.pets_allowed != null && (
+                        <span className="crv-tag">{isNeedRoom ? (listing.pets_allowed ? 'I have a pet' : 'No pets') : (listing.pets_allowed ? 'Pets allowed' : 'No pets')}</span>
+                      )}
+                      {listing?.smoking_allowed != null && (
+                        <span className="crv-tag">{isNeedRoom ? (listing.smoking_allowed ? 'I smoke' : 'Non-smoker') : (listing.smoking_allowed ? 'Smoking allowed' : 'No smoking')}</span>
+                      )}
+                      {isNeedRoom && listing?.furnished && <span className="crv-tag">{listing.furnished} furnished</span>}
+                    </div>
+                  ) : (
+                    <p className="crv-row__detail">—</p>
+                  )}
                 </ReviewRow>
 
-                {/* About Me */}
+                {/* Nearby Places — have-room only */}
+                {!isNeedRoom && (
+                  <ReviewRow
+                    icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>}
+                    title="Nearby Places"
+                    editTo={step1Route}
+                  >
+                    {listing?.nearby_university && <p className="crv-row__detail">🏫 {listing.nearby_university}</p>}
+                    {nearbyPlaces.length > 0 ? (
+                      <div className="crv-tags-wrap" style={{ marginTop: 4 }}>
+                        {nearbyPlaces.map(tag => <span key={tag} className="crv-tag">{tag}</span>)}
+                      </div>
+                    ) : !listing?.nearby_university ? (
+                      <p className="crv-row__detail">—</p>
+                    ) : null}
+                  </ReviewRow>
+                )}
+
+                {/* Photos — have-room only */}
+                {!isNeedRoom && (
+                  <ReviewRow
+                    icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>}
+                    title="Photos"
+                    editTo={step2Route}
+                  >
+                    {visiblePhotos.length > 0 ? (
+                      <div className="crv-photos-row">
+                        {visiblePhotos.map((p, i) => (
+                          <img key={i} src={p.url} alt={`Photo ${i + 1}`} className="crv-photo-thumb" />
+                        ))}
+                        {extraPhotos > 0 && <div className="crv-photo-more">+{extraPhotos}</div>}
+                      </div>
+                    ) : (
+                      <p className="crv-row__detail" style={{ color: '#aaa' }}>No photos added yet</p>
+                    )}
+                  </ReviewRow>
+                )}
+
+                {/* Share Profile */}
                 <ReviewRow
-                  icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>}
-                  title="About Me"
+                  icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
+                  title="Share Profile"
                   editTo={step2Route}
                 >
-                  <p className="crv-row__detail">I'm a quiet and tidy student who works mostly in the mornings. I love cooking and enjoy a peaceful home environment.</p>
+                  {listing?.share_profile ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2.5" width="14" height="14"><polyline points="20 6 9 17 4 12" /></svg>
+                      <p className="crv-row__detail" style={{ margin: 0, color: '#2e7d32' }}>Profile shared with this listing</p>
+                    </div>
+                  ) : (
+                    <p className="crv-row__detail" style={{ color: '#888' }}>Not sharing profile</p>
+                  )}
                 </ReviewRow>
 
-                {/* Rules / Important Info */}
+                {/* Declarations */}
                 <ReviewRow
-                  icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>}
-                  title="Rules / Important Info"
-                  editTo={step2Route}
+                  icon={<svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>}
+                  title="Declaration"
+                  editTo={step1Route}
                   last
                 >
-                  <p className="crv-row__detail">No parties, quiet after 11pm. Looking for a clean and respectful roommate.</p>
+                  {declarations.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                      {declarations.map(d => (
+                        <div key={d} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2.5" width="13" height="13" style={{ flexShrink: 0, marginTop: 3 }}><polyline points="20 6 9 17 4 12" /></svg>
+                          <p className="crv-row__detail" style={{ margin: 0 }}>{d}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="crv-row__detail" style={{ color: '#e05252' }}>No declarations confirmed yet</p>
+                  )}
                 </ReviewRow>
 
               </div>
 
-              {/* Privacy notice */}
-              <div style={{ padding: '8px 20px' }}>
-                <div className="crv-privacy">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="28" height="28" style={{ flexShrink: 0, marginTop: 2 }}>
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" />
-                  </svg>
-                  <div>
-                    <p className="crv-privacy__title">Your Privacy is Protected</p>
-                    <p className="crv-privacy__desc">Your phone number will never be shown publicly.<br />Students will contact you through in-app chat first.</p>
-                  </div>
-                </div>
-              </div>
 
-              {/* Action cards */}
-              <div style={{ padding: '8px 20px' }}>
-                <div className="crv-action-cards">
-                  <div className="crv-action-card">
-                    <div className="crv-action-card__icon crv-action-card__icon--shield">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="22" height="22"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" /></svg>
-                    </div>
-                    <h4 className="crv-action-card__title">Verify Yourself <span className="crv-action-card__badge">Optional</span></h4>
-                    <p className="crv-action-card__desc">Get a verified badge to build trust and get more enquiries.</p>
-                    <button type="button" className="crv-action-card__btn">Verify Now</button>
-                  </div>
-
-                  <div className="crv-action-card">
-                    <div className="crv-action-card__icon crv-action-card__icon--draft">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="22" height="22"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-                    </div>
-                    <h4 className="crv-action-card__title">Save as Draft</h4>
-                    <p className="crv-action-card__desc">You can save and continue later.</p>
-                    <button type="button" className="crv-action-card__btn">Save Draft</button>
-                  </div>
-
-                  <div className="crv-action-card">
-                    <div className="crv-action-card__icon crv-action-card__icon--globe">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="22" height="22"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
-                    </div>
-                    <h4 className="crv-action-card__title">Auto Translate</h4>
-                    <p className="crv-action-card__desc">Your listing will be automatically translated to 15+ languages.</p>
-                    <label className="cl-switch" style={{ marginTop: 6 }}>
-                      <input type="checkbox" checked={autoTranslate} onChange={e => setAutoTranslate(e.target.checked)} />
-                      <span className="cl-switch__track" />
-                    </label>
-                  </div>
-                </div>
-              </div>
 
             </div>
 
-            {/* Right Column */}
+            {/* Right Column — Preview Card */}
             <div className="cl-right" style={{ width: '320px', maxWidth: '320px', minWidth: 0 }}>
               <div className="cl-card crl-preview-card">
                 <h3 className="cl-card__title" style={{ marginBottom: 12 }}>
@@ -321,43 +485,37 @@ export default function RoommateReview() {
                 </h3>
                 <div className="crl-preview">
                   <div className="crl-preview__img-wrap">
-                    <img src={MOCK_PHOTOS[0]} alt="Room preview" className="crl-preview__img" />
+                    <img src={photos[0]?.url ?? 'https://via.placeholder.com/400x240?text=No+Photo'} alt="Room preview" className="crl-preview__img" />
                     <button type="button" className="crl-preview__heart" aria-label="Save">
                       <svg viewBox="0 0 24 24" fill="#e05252" stroke="#e05252" strokeWidth="2" width="16" height="16"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
                     </button>
                   </div>
                   <div className="crl-preview__body">
-                    <div className="crl-preview__title">Bright private room near UvA, bills included</div>
-                    <div className="crl-preview__price">€650<span>/month</span></div>
+                    <div className="crl-preview__title">{listing?.title ?? '—'}</div>
+                    <div className="crl-preview__price">
+                      {isNeedRoom
+                        ? (listing?.budget_max ? <>Budget up to €{listing.budget_max}<span>/month</span></> : '—')
+                        : (listing?.rent ? <>€{listing.rent}<span>/month</span></> : '—')}
+                    </div>
                     <div className="crl-preview__location">
                       <svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="12" height="12"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                      De Pijp, Amsterdam
+                      {[listing?.city, listing?.country].filter(Boolean).join(', ') || '—'}
                     </div>
                     <div className="crl-preview__tags">
-                      <span className="crl-preview__tag">Furnished</span>
-                      <span className="crl-preview__tag">Wi-Fi</span>
-                      <span className="crl-preview__tag">Bills included</span>
+                      {listing?.furnished && <span className="crl-preview__tag">{listing.furnished}</span>}
+                      {listing?.included_internet ? <span className="crl-preview__tag">Wi-Fi</span> : null}
+                      {listing?.size_sqm && !isNeedRoom ? <span className="crl-preview__tag">{listing.size_sqm} m²</span> : null}
+                      {listing?.room_type && <span className="crl-preview__tag">{listing.room_type === 'private' ? 'Private Room' : 'Shared Room'}</span>}
                     </div>
-                    <div className="crl-preview__avail">Available from 15 June</div>
-                    <div className="crl-preview__host">
-                      <div className="crl-preview__avatar">A</div>
-                      <div className="crl-preview__host-info">
-                        <span className="crl-preview__host-name">Anna</span>
-                        <span className="crl-preview__host-badge">Verified host</span>
-                      </div>
-                      <button type="button" className="crl-preview__details-link">View details <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12"><path d="M5 12h14M12 5l7 7-7 7" /></svg></button>
+                    <div className="crl-preview__avail">
+                      {availabilityDisplay}
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="cl-card crv-how-card">
-                <div className="crv-how__illustration">
-                  <div className="crv-how__bubble crv-how__bubble--1">Hi! I'm interested 😊</div>
-                  <div className="crv-how__bubble crv-how__bubble--2">Great! Let's chat in the app.</div>
-                  <div className="crv-how__bubble crv-how__bubble--3">Share contact after mutual consent</div>
-                  <div className="crv-how__emoji-row"><span>👤</span><span>📱</span><span>🏠</span><span>✅</span></div>
-                </div>
+                <img src="/how-it-works.svg" alt="How it works" style={{ width: '100%', display: 'block', marginBottom: 12 }} />
                 <h4 className="crv-how__title">How it works after publishing?</h4>
                 <ul className="crv-how__list">
                   {HOW_IT_WORKS.map(item => (
@@ -387,8 +545,8 @@ export default function RoommateReview() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15"><path d="M19 12H5M12 5l-7 7 7 7" /></svg>
                   Back
                 </button>
-                <button type="button" className="cl-next-btn" style={{ background: '#2a8a3d' }} onClick={() => alert('Listing published! 🎉')}>
-                  Publish listing
+                <button type="button" className="cl-next-btn" style={{ background: '#2a8a3d' }} onClick={handlePublish} disabled={publishing}>
+                  {publishing ? 'Publishing…' : 'Publish listing'}
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                 </button>
               </div>

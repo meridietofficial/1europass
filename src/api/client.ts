@@ -49,6 +49,16 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return handleResponse<T>(res)
 }
 
+export async function apiPostForm<T>(path: string, body: FormData): Promise<T> {
+  const token = localStorage.getItem(TOKEN_KEY)
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body,
+  })
+  return handleResponse<T>(res)
+}
+
 export async function apiPutForm<T>(path: string, body: FormData): Promise<T> {
   const token = localStorage.getItem(TOKEN_KEY)
   const res = await fetch(`${BASE_URL}${path}`, {

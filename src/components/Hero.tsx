@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 export default function Hero() {
   return (
     <section className="hero">
@@ -23,18 +25,18 @@ export default function Hero() {
           </div>
 
           <p className="hero__description">
-            Join thousands of students across Europe and the UK<span className="hero__description-break"><br /></span> using 1 Euro Pass to find, connect and save every day.
+            Join thousands of students across Europe and the UK — find housing, roommates, tutors, trips and more. All for just €1.
           </p>
 
           <div className="hero__ctas">
-            <button className="hero__btn-primary" type="button">
+            <Link to="/categories" className="hero__btn-primary">
               <img src="/browse-icon.png" alt="" className="hero__btn-icon" />
               Browse Listings
-            </button>
-            <button className="hero__btn-secondary" type="button">
+            </Link>
+            <Link to="/profile/post" className="hero__btn-secondary">
               <img src="/send-icon.png" alt="" className="hero__btn-icon" />
               Post a Listing for €1
-            </button>
+            </Link>
           </div>
 
           <div className="hero__trust">
