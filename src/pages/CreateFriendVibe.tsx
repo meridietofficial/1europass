@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -59,6 +59,49 @@ const PERSONALITIES = [
       </svg>
     ),
   },
+  {
+    id: 'adventurous',
+    label: 'Adventurous',
+    sub: 'Always up for something new',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" width="32" height="32">
+        <polygon points="3 17 9 3 15 17"/><polygon points="9 17 15 3 21 17"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'funny',
+    label: 'Funny',
+    sub: 'Always makes you laugh',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" width="32" height="32">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M8 13s1.5 3 4 3 4-3 4-3"/>
+        <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="2.5"/>
+        <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="2.5"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'introvert',
+    label: 'Introvert',
+    sub: 'Thoughtful and reflective',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" width="32" height="32">
+        <path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'social',
+    label: 'Social butterfly',
+    sub: 'Loves meeting new people',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" width="32" height="32">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    ),
+  },
 ]
 
 const INTERESTS = [
@@ -78,6 +121,14 @@ const INTERESTS = [
   { id: 'hiking',    label: 'Hiking',             icon: '🥾' },
   { id: 'cycling',   label: 'Cycling',            icon: '🚲' },
   { id: 'volunteer', label: 'Volunteering',       icon: '🤝' },
+  { id: 'cooking',   label: 'Cooking',            icon: '🍳' },
+  { id: 'dancing',   label: 'Dancing',            icon: '💃' },
+  { id: 'yoga',      label: 'Yoga / Meditation',  icon: '🧘' },
+  { id: 'tech',      label: 'Tech / Coding',      icon: '💻' },
+  { id: 'boardgames',label: 'Board games',        icon: '🎲' },
+  { id: 'anime',     label: 'Anime / Manga',      icon: '🎌' },
+  { id: 'fashion',   label: 'Fashion',            icon: '👗' },
+  { id: 'nature',    label: 'Nature / Outdoors',  icon: '🌿' },
   { id: 'other',     label: 'Other',              icon: '—' },
 ]
 
@@ -85,26 +136,39 @@ const MAX_BIO = 200
 
 export default function CreateFriendVibe() {
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
 
   const [vibes, setVibes]         = useState<string[]>([])
   const [interests, setInterests] = useState<string[]>([])
   const [bio, setBio]             = useState('')
 
-  function toggleVibe(id: string) {
-    setVibes(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id])
+  useEffect(() => {
+    const s2 = sessionStorage.getItem('friend_step2')
+    if (s2) {
+      try {
+        const data = JSON.parse(s2)
+        if (Array.isArray(data.vibes))     setVibes(data.vibes)
+        if (Array.isArray(data.interests)) setInterests(data.interests)
+        if (data.bio)                      setBio(data.bio)
+      } catch { /* ignore */ }
+    }
+  }, [])
+
+  function toggleVibe(vid: string) {
+    setVibes(prev => prev.includes(vid) ? prev.filter(v => v !== vid) : [...prev, vid])
   }
 
-  function toggleInterest(id: string) {
-    setInterests(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+  function toggleInterest(iid: string) {
+    setInterests(prev => prev.includes(iid) ? prev.filter(i => i !== iid) : [...prev, iid])
   }
 
   function handleBack() {
-    navigate('/profile/post/friend')
+    navigate(id ? `/profile/post/friend/edit/${id}` : '/profile/post/friend')
   }
 
   function handleNext() {
     sessionStorage.setItem('friend_step2', JSON.stringify({ vibes, interests, bio }))
-    navigate('/profile/post/friend/review')
+    navigate(id ? `/profile/post/friend/edit/${id}/review` : '/profile/post/friend/review')
   }
 
   return (
@@ -130,7 +194,6 @@ export default function CreateFriendVibe() {
             </div>
 
             <div className="cl-steps">
-              {/* Step 1 — done */}
               <div className="cl-step cl-step--done">
                 <div className="cl-step__circle">1</div>
                 <div className="cl-step__icon-wrap">
@@ -144,7 +207,6 @@ export default function CreateFriendVibe() {
 
               <div className="cl-steps__line cl-steps__line--done" />
 
-              {/* Step 2 — active */}
               <div className="cl-step is-active">
                 <div className="cl-step__circle">2</div>
                 <div className="cl-step__icon-wrap">
@@ -158,7 +220,6 @@ export default function CreateFriendVibe() {
 
               <div className="cl-steps__line" />
 
-              {/* Step 3 */}
               <div className="cl-step">
                 <div className="cl-step__circle">3</div>
                 <div className="cl-step__icon-wrap">
@@ -296,7 +357,6 @@ export default function CreateFriendVibe() {
             {/* ── Right sidebar ── */}
             <aside className="cl-right">
 
-              {/* Find your people */}
               <div className="friend-sidebar-card friend-sidebar-card--green">
                 <div className="friend-sc-header">
                   <svg viewBox="0 0 24 24" fill="none" stroke="#2a8a3d" strokeWidth="2" width="18" height="18">
@@ -312,7 +372,6 @@ export default function CreateFriendVibe() {
                 </ul>
               </div>
 
-              {/* Tips for a great profile */}
               <div className="friend-sidebar-card">
                 <div className="friend-sc-header">
                   <svg viewBox="0 0 24 24" fill="none" stroke="#f0a500" strokeWidth="2" width="18" height="18">
@@ -329,7 +388,6 @@ export default function CreateFriendVibe() {
                 </ul>
               </div>
 
-              {/* Need inspiration? */}
               <div className="friend-sidebar-card friend-sidebar-card--purple">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" width="16" height="16">

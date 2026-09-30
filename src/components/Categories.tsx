@@ -19,7 +19,7 @@ const SLUG_ROUTES: Record<string, string> = {
 
 function categoryRoute(slug: string) {
   const normalised = slug.toLowerCase().replace(/_/g, '-')
-  return SLUG_ROUTES[normalised] ?? SLUG_ROUTES[slug] ?? null
+  return SLUG_ROUTES[normalised] ?? SLUG_ROUTES[slug] ?? `/profile/post/${normalised}`
 }
 
 export default function Categories() {
@@ -53,26 +53,15 @@ export default function Categories() {
                   <div className="category-card__name" style={{ background: '#e0ddd4', color: 'transparent', borderRadius: 4 }}>Loading</div>
                 </div>
               ))
-            : categories.map((cat) => {
-                const route = categoryRoute(cat.slug)
-                return route ? (
-                  <Link key={cat.id} to={route} className="category-card">
-                    <div className="category-card__icon-wrap">
-                      <img src={cat.icon} alt={cat.name} className="category-card__img" />
-                    </div>
-                    <div className="category-card__name">{cat.name}</div>
-                    <div className="category-card__desc">{cat.description}</div>
-                  </Link>
-                ) : (
-                  <div key={cat.id} className="category-card" style={{ opacity: 0.55, cursor: 'default' }}>
-                    <div className="category-card__icon-wrap">
-                      <img src={cat.icon} alt={cat.name} className="category-card__img" />
-                    </div>
-                    <div className="category-card__name">{cat.name}</div>
-                    <div className="category-card__desc">{cat.description}</div>
+            : categories.map((cat) => (
+                <Link key={cat.id} to={categoryRoute(cat.slug)} className="category-card">
+                  <div className="category-card__icon-wrap">
+                    <img src={cat.icon} alt={cat.name} className="category-card__img" />
                   </div>
-                )
-              })}
+                  <div className="category-card__name">{cat.name}</div>
+                  <div className="category-card__desc">{cat.description}</div>
+                </Link>
+              ))}
         </div>
       </div>
     </section>

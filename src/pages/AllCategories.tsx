@@ -9,12 +9,22 @@ const SLUG_ROUTES: Record<string, string> = {
   housing: '/housing',
   roommates: '/roommates',
   'buy-and-sell': '/buy-sell',
+  'buy-sell': '/buy-sell',
+  buy_and_sell: '/buy-sell',
+  buy_sell: '/buy-sell',
   tutor: '/teach-and-coach',
+  tutoring: '/teach-and-coach',
+  'teach-and-coach': '/teach-and-coach',
+  teach_and_coach: '/teach-and-coach',
   trip: '/trip',
+  trips: '/trip',
+  friends: '/friends',
+  friend: '/friends',
 }
 
 function categoryRoute(slug: string) {
-  return SLUG_ROUTES[slug] ?? `/profile/post/${slug}`
+  const normalised = slug.toLowerCase().replace(/_/g, '-')
+  return SLUG_ROUTES[normalised] ?? SLUG_ROUTES[slug] ?? `/profile/post/${slug}`
 }
 
 export default function AllCategories() {

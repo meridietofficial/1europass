@@ -1,16 +1,12 @@
-import { useState, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import { uploadImagesToCloudinary } from '../api/cloudinaryUpload'
+import { updateTripListing, getTripListing } from '../api/trip'
 
 const MAX_PHOTOS = 15
 
-const DEFAULT_DAYS = [
-  { title: 'Day 1 - Arrival & Meet Up', desc: 'Airport pickup, check-in and get to know each other' },
-  { title: 'Day 2 - City Exploration', desc: 'Walking tour, local food & hidden gems' },
-  { title: 'Day 3 - Scenic Adventure', desc: 'Hiking and nature exploration' },
-  { title: 'Day 4 - Chill & Departure', desc: 'Free time, goodbyes and departure' },
-]
 
 const TIPS = [
   'Add clear and attractive photos',
@@ -22,22 +18,39 @@ const TIPS = [
 
 interface DayItem {
   id: number
-  title: string
+  name: string
+  type: string
   desc: string
   expanded: boolean
 }
 
-let dayCounter = DEFAULT_DAYS.length + 1
-
 export default function CreateTripPhotos() {
   const navigate = useNavigate()
+  const { id: editId } = useParams<{ id: string }>()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [photos, setPhotos] = useState<{ file: File; url: string }[]>([])
+  const [photos, setPhotos] = useState<{ file: File | null; url: string }[]>([])
   const [dragOver, setDragOver] = useState(false)
-  const [days, setDays] = useState<DayItem[]>(
-    DEFAULT_DAYS.map((d, i) => ({ id: i + 1, title: d.title, desc: d.desc, expanded: false }))
-  )
-  const [newDayTitle, setNewDayTitle] = useState('')
+  const [days, setDays] = useState<DayItem[]>([])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!editId) return
+    getTripListing(editId).then(data => {
+      if (Array.isArray(data.photos) && data.photos.length > 0) {
+        setPhotos(data.photos.map((url: string) => ({ file: null, url })))
+      }
+      if (Array.isArray(data.itinerary) && data.itinerary.length > 0) {
+        setDays(data.itinerary.map((d: { name: string; type: string; desc: string }, i: number) => ({
+          id: Date.now() + i,
+          name: d.name ?? '',
+          type: d.type ?? '',
+          desc: d.desc ?? '',
+          expanded: false,
+        })))
+      }
+    }).catch(() => {})
+  }, [editId])
 
   function addPhotos(files: FileList | null) {
     if (!files) return
@@ -46,20 +59,48 @@ export default function CreateTripPhotos() {
   }
 
   function removePhoto(i: number) {
-    setPhotos(prev => { URL.revokeObjectURL(prev[i].url); return prev.filter((_, idx) => idx !== i) })
+    setPhotos(prev => {
+      const p = prev[i]
+      if (p.file) URL.revokeObjectURL(p.url)
+      return prev.filter((_, idx) => idx !== i)
+    })
   }
 
   function addDay() {
-    const n = dayCounter++
-    setDays(prev => [...prev, { id: n, title: `Day ${n} - New Day`, desc: '', expanded: true }])
+    setDays(prev => [...prev, { id: Date.now(), name: '', type: '', desc: '', expanded: true }])
   }
 
   function removeDay(id: number) { setDays(prev => prev.filter(d => d.id !== id)) }
 
   function toggleDay(id: number) { setDays(prev => prev.map(d => d.id === id ? { ...d, expanded: !d.expanded } : d)) }
 
-  function updateDay(id: number, field: 'title' | 'desc', val: string) {
+  function updateDay(id: number, field: 'name' | 'type' | 'desc', val: string) {
     setDays(prev => prev.map(d => d.id === id ? { ...d, [field]: val } : d))
+  }
+
+  async function handleNext() {
+    if (!editId) {
+      setError('Trip details not found. Please go back to Step 1.')
+      return
+    }
+    setError('')
+    setSaving(true)
+    try {
+      const existingUrls = photos.filter(p => !p.file).map(p => p.url)
+      const newFiles = photos.filter(p => p.file).map(p => p.file as File)
+      let uploadedUrls: string[] = []
+      if (newFiles.length > 0) {
+        uploadedUrls = await uploadImagesToCloudinary(newFiles, 'trip-listings')
+      }
+      const photoUrls = [...existingUrls, ...uploadedUrls]
+      const itineraryData = days.map(d => ({ name: d.name, type: d.type, desc: d.desc }))
+      await updateTripListing(editId, { photos: photoUrls, itinerary: itineraryData })
+      navigate(`/profile/post/trip/edit/${editId}/review`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -156,22 +197,26 @@ export default function CreateTripPhotos() {
                     </div>
 
                     <div className="tp-photo-grid">
-                      {/* Drop zone — always first */}
-                      <div
-                        className={`tp-dropzone${dragOver ? ' is-drag' : ''}`}
-                        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-                        onDragLeave={() => setDragOver(false)}
-                        onDrop={e => { e.preventDefault(); setDragOver(false); addPhotos(e.dataTransfer.files) }}
-                        onClick={() => fileRef.current?.click()}
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="1.5" width="36" height="36">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
-                        <span className="tp-dropzone__title">Drag &amp; drop photos<br/>here</span>
-                        <span className="tp-dropzone__or">or <span className="tp-dropzone__browse">click to browse</span></span>
-                        <span className="tp-dropzone__hint">You can add up to {MAX_PHOTOS} photos<br/>JPG, PNG up to 10MB each</span>
-                        <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => { addPhotos(e.target.files); e.target.value = '' }}/>
-                      </div>
+                      {/* Hidden file input — always present */}
+                      <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => { addPhotos(e.target.files); e.target.value = '' }}/>
+
+                      {/* Drop zone — only when no photos yet */}
+                      {photos.length === 0 && (
+                        <div
+                          className={`tp-dropzone${dragOver ? ' is-drag' : ''}`}
+                          onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                          onDragLeave={() => setDragOver(false)}
+                          onDrop={e => { e.preventDefault(); setDragOver(false); addPhotos(e.dataTransfer.files) }}
+                          onClick={() => fileRef.current?.click()}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="1.5" width="36" height="36">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                          </svg>
+                          <span className="tp-dropzone__title">Drag &amp; drop photos<br/>here</span>
+                          <span className="tp-dropzone__or">or <span className="tp-dropzone__browse">click to browse</span></span>
+                          <span className="tp-dropzone__hint">You can add up to {MAX_PHOTOS} photos<br/>JPG, PNG up to 10MB each</span>
+                        </div>
+                      )}
 
                       {/* Uploaded photos */}
                       {photos.map((p, i) => (
@@ -185,7 +230,7 @@ export default function CreateTripPhotos() {
                         </div>
                       ))}
 
-                      {/* Add more slot */}
+                      {/* Add more slot — only when photos exist and limit not reached */}
                       {photos.length > 0 && photos.length < MAX_PHOTOS && (
                         <button type="button" className="tp-add-more" onClick={() => fileRef.current?.click()}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.8" width="28" height="28">
@@ -220,7 +265,7 @@ export default function CreateTripPhotos() {
                     </div>
 
                     <div className="tp-days-list">
-                      {days.map(day => (
+                      {days.map((day, idx) => (
                         <div key={day.id} className="tp-day-row">
                           <div className="tp-day-card">
                             <span className="tp-day-drag">
@@ -230,26 +275,40 @@ export default function CreateTripPhotos() {
                             </span>
                             <div className="tp-day-body">
                               {day.expanded ? (
-                                <>
+                                <div className="tp-day-fields">
+                                  <div className="tp-day-row-top">
+                                    <span className="tp-day-num-label">Day {idx + 1}</span>
+                                    <input
+                                      className="tp-day-name-input"
+                                      type="text"
+                                      value={day.name}
+                                      onChange={e => updateDay(day.id, 'name', e.target.value)}
+                                      placeholder="Day name (e.g. Arrival & City Tour)"
+                                    />
+                                  </div>
                                   <input
-                                    className="tp-day-title-input"
+                                    className="tp-day-type-input"
                                     type="text"
-                                    value={day.title}
-                                    onChange={e => updateDay(day.id, 'title', e.target.value)}
-                                    placeholder="Day title..."
+                                    value={day.type}
+                                    onChange={e => updateDay(day.id, 'type', e.target.value)}
+                                    placeholder="Activity type (e.g. Sightseeing, Adventure, Food & Culture)"
                                   />
-                                  <input
-                                    className="tp-day-desc-input"
-                                    type="text"
+                                  <textarea
+                                    className="tp-day-desc-textarea"
                                     value={day.desc}
                                     onChange={e => updateDay(day.id, 'desc', e.target.value)}
-                                    placeholder="Brief description..."
+                                    placeholder="Describe what travelers will do on this day..."
+                                    rows={3}
                                   />
-                                </>
+                                </div>
                               ) : (
                                 <>
-                                  <span className="tp-day-title">{day.title}</span>
-                                  <span className="tp-day-desc">{day.desc}</span>
+                                  <div className="tp-day-collapsed-top">
+                                    <span className="tp-day-num-badge">Day {idx + 1}</span>
+                                    <span className="tp-day-title">{day.name || 'Untitled Day'}</span>
+                                  </div>
+                                  {day.type && <span className="tp-day-type-tag">{day.type}</span>}
+                                  {day.desc && <span className="tp-day-desc">{day.desc}</span>}
                                 </>
                               )}
                             </div>
@@ -346,18 +405,19 @@ export default function CreateTripPhotos() {
               </div>
             </div>
             <div className="cl-footer-bar__right">
+              {error && <p style={{ color: '#e05252', fontSize: 13, marginBottom: 8, textAlign: 'right' }}>{error}</p>}
               <div className="cl-footer-bar__btns">
-                <button type="button" className="cl-back-btn" onClick={() => navigate('/profile/post/trip')}>
+                <button type="button" className="cl-back-btn" onClick={() => navigate(editId ? `/profile/post/trip/edit/${editId}` : '/profile/post/trip')}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15">
                     <path d="M19 12H5M12 5l-7 7 7 7"/>
                   </svg>
                   Back
                 </button>
-                <button type="button" className="cl-next-btn" style={{ background: '#2a8a3d' }} onClick={() => navigate('/profile/post/trip/review')}>
-                  Publish Listing
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
+                <button type="button" className="cl-next-btn" style={{ background: '#2a8a3d' }} onClick={handleNext} disabled={saving}>
+                  {saving ? 'Uploading...' : 'Next: Review & Publish'}
+                  {!saving && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
+                  </svg>}
                 </button>
               </div>
               <p className="cl-footer-bar__note">

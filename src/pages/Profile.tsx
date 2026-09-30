@@ -922,8 +922,10 @@ function ListingsPanel() {
     setActing(id)
     try {
       const endpoint =
-        listing_type === 'marketplace' ? ENDPOINTS.marketplace.delete(id) :
-        listing_type === 'teach_and_coach' ? ENDPOINTS.teachAndCoach.delete(id) :
+        listing_type === 'marketplace'    ? ENDPOINTS.marketplace.delete(id) :
+        listing_type === 'teach_and_coach'? ENDPOINTS.teachAndCoach.delete(id) :
+        listing_type === 'friend'         ? ENDPOINTS.friend.delete(id) :
+        listing_type === 'trip'           ? ENDPOINTS.trip.delete(id) :
         ENDPOINTS.housing.delete(id)
       await apiDelete(endpoint)
       setListings(prev => prev.filter(l => l.id !== id))
@@ -940,8 +942,10 @@ function ListingsPanel() {
     setActing(l.id)
     try {
       const endpoint =
-        l.listing_type === 'marketplace' ? ENDPOINTS.marketplace.status(l.id) :
-        l.listing_type === 'teach_and_coach' ? ENDPOINTS.teachAndCoach.status(l.id) :
+        l.listing_type === 'marketplace'    ? ENDPOINTS.marketplace.status(l.id) :
+        l.listing_type === 'teach_and_coach'? ENDPOINTS.teachAndCoach.status(l.id) :
+        l.listing_type === 'friend'         ? ENDPOINTS.friend.status(l.id) :
+        l.listing_type === 'trip'           ? ENDPOINTS.trip.status(l.id) :
         ENDPOINTS.housing.status(l.id)
       await apiPatch(endpoint, { status: next })
       setListings(prev => prev.map(x => x.id === l.id ? { ...x, status: next } : x))
@@ -1028,6 +1032,8 @@ function ListingsPanel() {
                       if (l.listing_type === 'marketplace') navigate(`/buy-sell/${l.id}`)
                       else if (l.listing_type === 'roommate') navigate(`/roommates/${l.id}`)
                       else if (l.listing_type === 'teach_and_coach') navigate(`/teach-and-coach/${l.id}`)
+                      else if (l.listing_type === 'friend') navigate(`/friends/${l.id}`)
+                      else if (l.listing_type === 'trip') navigate(`/trip/${l.id}`)
                       else navigate(`/housing/${l.id}`)
                     }}
                     style={{ width: 34, height: 34, borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
@@ -1051,6 +1057,10 @@ function ListingsPanel() {
                       else if (l.listing_type === 'teach_and_coach') {
                         sessionStorage.setItem('tac_draft_id', l.id)
                         navigate('/profile/post/teach-and-coach')
+                      } else if (l.listing_type === 'friend') {
+                        navigate(`/profile/post/friend/edit/${l.id}`)
+                      } else if (l.listing_type === 'trip') {
+                        navigate(`/profile/post/trip/edit/${l.id}`)
                       } else navigate(`/profile/post/housing/edit/${l.id}`)
                     }}
                     style={{ width: 34, height: 34, borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}

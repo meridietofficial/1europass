@@ -30,7 +30,9 @@ const CreateTeachAndCoachListing = lazy(() => import('./pages/CreateTeachAndCoac
 const CreateTeachAndCoachCourseDetails = lazy(() => import('./pages/CreateTeachAndCoachCourseDetails'))
 const CreateTeachAndCoachReview = lazy(() => import('./pages/CreateTeachAndCoachReview'))
 const Trip = lazy(() => import('./pages/Trip'))
+const TripDetail = lazy(() => import('./pages/TripDetail'))
 const Friends = lazy(() => import('./pages/Friends'))
+const FriendsDetail = lazy(() => import('./pages/FriendsDetail'))
 const CreateTripListing = lazy(() => import('./pages/CreateTripListing'))
 const CreateTripPhotos = lazy(() => import('./pages/CreateTripPhotos'))
 const CreateTripReview = lazy(() => import('./pages/CreateTripReview'))
@@ -90,7 +92,9 @@ export default function App() {
       <Route path="/teach-and-coach" element={<TeachAndCoach />} />
       <Route path="/teach-and-coach/:id" element={<TeachAndCoachDetail />} />
       <Route path="/trip" element={<Trip />} />
+      <Route path="/trip/:id" element={<TripDetail />} />
       <Route path="/friends" element={<Friends />} />
+      <Route path="/friends/:id" element={<FriendsDetail />} />
       <Route path="/for-businesses" element={<ForBusinesses />} />
       <Route path="/blog" element={<Blog />} />
       <Route path="/about" element={<About />} />
@@ -116,8 +120,9 @@ export default function App() {
       <Route path="/profile/post/teach-and-coach/course-details" element={<CreateTeachAndCoachCourseDetails />} />
       <Route path="/profile/post/teach-and-coach/review" element={<CreateTeachAndCoachReview />} />
       <Route path="/profile/post/trip" element={<CreateTripListing />} />
-      <Route path="/profile/post/trip/photos" element={<CreateTripPhotos />} />
-      <Route path="/profile/post/trip/review" element={<CreateTripReview />} />
+      <Route path="/profile/post/trip/edit/:id" element={<CreateTripListing />} />
+      <Route path="/profile/post/trip/edit/:id/photos" element={<CreateTripPhotos />} />
+      <Route path="/profile/post/trip/edit/:id/review" element={<CreateTripReview />} />
       <Route path="/profile/post/buy-sell" element={<CreateBuySellListing />} />
       <Route path="/profile/post/buy-sell/edit/:id" element={<CreateBuySellListing />} />
       <Route path="/profile/post/buy-sell/edit/:id/photos" element={<BuySellPhotos />} />
@@ -127,6 +132,9 @@ export default function App() {
       <Route path="/profile/post/friend" element={<CreateFriendListing />} />
       <Route path="/profile/post/friend/vibe" element={<CreateFriendVibe />} />
       <Route path="/profile/post/friend/review" element={<CreateFriendReview />} />
+      <Route path="/profile/post/friend/edit/:id" element={<CreateFriendListing />} />
+      <Route path="/profile/post/friend/edit/:id/vibe" element={<CreateFriendVibe />} />
+      <Route path="/profile/post/friend/edit/:id/review" element={<CreateFriendReview />} />
       <Route path="/profile/post/:category" element={<CategoryComingSoon />} />
     </Routes>
     </Suspense>

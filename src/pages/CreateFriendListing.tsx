@@ -1,59 +1,57 @@
-import { useState, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import { useAuth } from '../context/AuthContext'
+import { apiGet } from '../api/client'
+import { ENDPOINTS } from '../api/endpoints'
 
 export const FRIEND_DRAFT_KEY = 'friend_draft_id'
-
-const UNIVERSITIES = [
-  'University of Amsterdam', 'Humboldt University Berlin', 'KU Leuven',
-  'University of Copenhagen', 'University of Helsinki', 'Sorbonne University',
-  'LMU Munich', 'University of Barcelona', 'University of Warsaw',
-  'Charles University Prague', 'University of Vienna', 'University College Dublin',
-  'University of Edinburgh', 'University of Bologna', 'Erasmus University Rotterdam',
-  'Uppsala University', 'University of Lisbon', 'Maastricht University', 'Other',
-]
-
-const FIELDS_OF_STUDY = [
-  'Business & Economics', 'Computer Science & IT', 'Engineering',
-  'Medicine & Health', 'Law', 'Arts & Humanities', 'Social Sciences',
-  'Natural Sciences', 'Mathematics & Statistics', 'Architecture & Design',
-  'Education', 'Psychology', 'Communication & Media', 'Languages', 'Other',
-]
-
-const YEARS_OF_STUDY = [
-  '1st Year', '2nd Year', '3rd Year', '4th Year',
-  'Masters Year 1', 'Masters Year 2', 'PhD', 'Exchange Student',
-]
 
 const LOOKING_FOR = ['Anyone', 'Male', 'Female']
 
 export default function CreateFriendListing() {
   const navigate = useNavigate()
-  const photoRef = useRef<HTMLInputElement>(null)
+  const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
 
-  const [name, setName]           = useState('')
-  const [city, setCity]           = useState('')
-  const [university, setUniversity] = useState('')
-  const [field, setField]         = useState('')
-  const [year, setYear]           = useState('')
-  const [lookingFor, setLookingFor] = useState('Anyone')
-  const [ageMin, setAgeMin]       = useState(18)
-  const [ageMax, setAgeMax]       = useState(30)
-  const [photo, setPhoto]         = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [name, setName]             = useState(user?.full_name ?? '')
+  const [city, setCity]               = useState(user?.city ?? '')
+  const [dob, setDob]                 = useState(user?.dob ?? '')
+  const [language, setLanguage]       = useState(user?.language ?? '')
+  const [country, setCountry]         = useState(user?.country ?? '')
+  const [stateRegion, setStateRegion] = useState(user?.state ?? '')
+  const [title, setTitle]             = useState('')
+  const [lookingFor, setLookingFor]   = useState('Anyone')
+  const [ageMin, setAgeMin]           = useState(18)
+  const [ageMax, setAgeMax]           = useState(30)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(user?.profile_picture ?? null)
+  const [loadingEdit, setLoadingEdit] = useState(!!id)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  useEffect(() => {
+    if (!id) return
+    apiGet<{ success: boolean; data: Record<string, unknown> }>(ENDPOINTS.friend.get(id))
+      .then(res => {
+        const d = res.data
+        if (d.title)      setTitle(String(d.title))
+        if (d.looking_for) setLookingFor(String(d.looking_for))
+        if (d.age_min != null) setAgeMin(Number(d.age_min))
+        if (d.age_max != null) setAgeMax(Number(d.age_max))
+        const vibes     = Array.isArray(d.vibes)     ? d.vibes     : (d.vibes     ? JSON.parse(String(d.vibes))     : [])
+        const interests = Array.isArray(d.interests) ? d.interests : (d.interests ? JSON.parse(String(d.interests)) : [])
+        const bio = d.bio ? String(d.bio) : ''
+        sessionStorage.setItem('friend_step2', JSON.stringify({ vibes, interests, bio }))
+      })
+      .catch(() => {})
+      .finally(() => setLoadingEdit(false))
+  }, [id])
+
+  function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setPhoto(file)
-    setPhotoPreview(URL.createObjectURL(file))
-  }
-
-  function removePhoto() {
-    setPhoto(null)
-    setPhotoPreview(null)
-    if (photoRef.current) photoRef.current.value = ''
+    const url = URL.createObjectURL(file)
+    setPhotoPreview(url)
   }
 
   function handleAgeMin(val: number) {
@@ -65,10 +63,16 @@ export default function CreateFriendListing() {
   }
 
   function handleNext() {
+    if (!title.trim()) {
+      alert('Please enter a listing title.')
+      return
+    }
     sessionStorage.setItem('friend_step1', JSON.stringify({
-      name, city, university, field, year, lookingFor, ageMin, ageMax,
+      title: title.trim(),
+      name, city, dob, language, country, stateRegion,
+      lookingFor, ageMin, ageMax,
     }))
-    navigate('/profile/post/friend/vibe')
+    navigate(id ? `/profile/post/friend/edit/${id}/vibe` : '/profile/post/friend/vibe')
   }
 
   const ageMinPct = ((ageMin - 18) / (30 - 18)) * 100
@@ -151,192 +155,119 @@ export default function CreateFriendListing() {
                 <p className="friend-section-sub">This information helps others get to know you.</p>
               </div>
 
-              {/* Inner grid: form fields left | photo right */}
-              <div className="friend-inner-grid">
+              {/* ── Unified form ── */}
+              <div className="friend-form-body" style={{ padding: '0 20px 8px' }}>
 
-                {/* ── Form fields ── */}
-                <div className="friend-fields">
-
-                  {/* Your name */}
-                  <div className="tutor-field">
-                    <label className="cl-label">Your name *</label>
+                {/* Listing title */}
+                <div className="tutor-field tutor-field--standalone">
+                  <label className="cl-label">Listing Title *</label>
+                  <div style={{ position: 'relative' }}>
                     <input
                       className="cl-input"
                       type="text"
-                      placeholder="e.g. Sophie"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
+                      placeholder="e.g. Looking for a hiking buddy in Berlin"
+                      maxLength={80}
+                      value={title}
+                      onChange={e => setTitle(e.target.value)}
+                      style={{ paddingRight: 52 }}
                     />
+                    <span style={{
+                      position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                      fontSize: 11, color: '#b0afa8', fontFamily: 'Nunito, sans-serif', pointerEvents: 'none',
+                    }}>
+                      {title.length}/80
+                    </span>
                   </div>
+                </div>
 
-                  {/* City */}
+                {/* Edit profile link */}
+                <div className="friend-edit-row">
+                  <span className="friend-edit-hint">Auto-filled from your profile</span>
+                  <Link to="/profile/edit" className="friend-edit-link">Edit profile →</Link>
+                </div>
+
+                {/* Rows 1-3: Name / DOB / Country on left, Photo spanning all 3 on right */}
+                <div className="friend-top-grid">
                   <div className="tutor-field">
-                    <label className="cl-label">City *</label>
-                    <div style={{ position: 'relative' }}>
-                      <svg style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2" width="15" height="15">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                      </svg>
-                      <input
-                        className="cl-input cl-input--pl"
-                        type="text"
-                        placeholder="e.g. Berlin, Amsterdam"
-                        value={city}
-                        onChange={e => setCity(e.target.value)}
-                      />
+                    <label className="cl-label">Your name</label>
+                    <div className="friend-display-value">{name || '—'}</div>
+                  </div>
+
+                  {/* Right col — spans rows 1-3 */}
+                  <div className="tutor-field friend-photo-field">
+                    <label className="cl-label">Profile Photo</label>
+                    <div className="friend-photo-preview">
+                      {photoPreview
+                        ? <img src={photoPreview} alt="Preview" className="friend-photo-img" />
+                        : <div className="friend-photo-placeholder">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" width="28" height="28">
+                              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                              <circle cx="12" cy="13" r="4"/>
+                            </svg>
+                            <span>No photo set</span>
+                          </div>
+                      }
                     </div>
                   </div>
 
-                  {/* University */}
                   <div className="tutor-field">
-                    <label className="cl-label">University *</label>
-                    <div className="cl-select-wrap">
-                      <svg className="cl-select-icon" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15">
-                        <path d="M12 3L2 8l10 5 10-5-10-5z"/><path d="M2 8v7l10 5 10-5V8"/>
-                      </svg>
-                      <select
-                        className="cl-input cl-input--select cl-input--pl"
-                        value={university}
-                        onChange={e => setUniversity(e.target.value)}
-                      >
-                        <option value="">Select your university</option>
-                        {UNIVERSITIES.map(u => <option key={u} value={u}>{u}</option>)}
-                      </select>
-                    </div>
+                    <label className="cl-label">Date of Birth</label>
+                    <div className="friend-display-value">{dob ? dob.slice(0, 10) : '—'}</div>
                   </div>
 
-                  {/* Course + Year */}
-                  <div className="tutor-grid-2">
-                    <div className="tutor-field">
-                      <label className="cl-label">Course / Field of Study</label>
-                      <div className="cl-select-wrap">
-                        <svg className="cl-select-icon" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15">
-                          <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
-                        </svg>
-                        <select
-                          className="cl-input cl-input--select cl-input--pl"
-                          value={field}
-                          onChange={e => setField(e.target.value)}
-                        >
-                          <option value="">What are you studying?</option>
-                          {FIELDS_OF_STUDY.map(f => <option key={f} value={f}>{f}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="tutor-field">
-                      <label className="cl-label">Year of Study</label>
-                      <div className="cl-select-wrap">
-                        <svg className="cl-select-icon" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="15" height="15">
-                          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                        </svg>
-                        <select
-                          className="cl-input cl-input--select cl-input--pl"
-                          value={year}
-                          onChange={e => setYear(e.target.value)}
-                        >
-                          <option value="">Select year</option>
-                          {YEARS_OF_STUDY.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                      </div>
-                    </div>
+                  <div className="tutor-field">
+                    <label className="cl-label">Country</label>
+                    <div className="friend-display-value">{country || '—'}</div>
                   </div>
+                </div>
 
-                  {/* I am looking for */}
+                <div className="tutor-grid-2">
+                  <div className="tutor-field">
+                    <label className="cl-label">State / Region</label>
+                    <div className="friend-display-value">{stateRegion || '—'}</div>
+                  </div>
                   <div className="tutor-field">
                     <label className="cl-label">I am looking for *</label>
                     <div className="friend-gender-row">
                       {LOOKING_FOR.map(opt => (
-                        <button
-                          key={opt}
-                          type="button"
+                        <button key={opt} type="button"
                           className={`friend-gender-btn${lookingFor === opt ? ' is-active' : ''}`}
                           onClick={() => setLookingFor(opt)}
                         >
-                          {lookingFor === opt && (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14" style={{ marginRight: 4 }}>
-                              <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                          )}
                           {opt}
                         </button>
                       ))}
                     </div>
                   </div>
+                </div>
 
-                  {/* Preferred age range */}
+                {/* City + Preferred age range */}
+                <div className="tutor-grid-2">
+                  <div className="tutor-field">
+                    <label className="cl-label">City</label>
+                    <div className="friend-display-value">{city || '—'}</div>
+                  </div>
                   <div className="tutor-field">
                     <label className="cl-label">Preferred age range</label>
                     <div className="friend-range-wrap">
                       <div className="friend-range-track">
-                        <div
-                          className="friend-range-fill"
-                          style={{
-                            left: `${ageMinPct}%`,
-                            width: `${ageMaxPct - ageMinPct}%`,
-                          }}
-                        />
-                        <input
-                          type="range" min={18} max={30}
-                          value={ageMin}
-                          onChange={e => handleAgeMin(Number(e.target.value))}
-                          className="friend-range-input"
-                        />
-                        <input
-                          type="range" min={18} max={30}
-                          value={ageMax}
-                          onChange={e => handleAgeMax(Number(e.target.value))}
-                          className="friend-range-input"
-                        />
+                        <div className="friend-range-fill" style={{ left: `${ageMinPct}%`, width: `${ageMaxPct - ageMinPct}%` }} />
+                        <input type="range" min={18} max={30} value={ageMin}
+                          onChange={e => handleAgeMin(Number(e.target.value))} className="friend-range-input" />
+                        <input type="range" min={18} max={30} value={ageMax}
+                          onChange={e => handleAgeMax(Number(e.target.value))} className="friend-range-input" />
                       </div>
                       <div className="friend-range-labels">
                         <span>18</span>
-                        <span style={{ fontWeight: 600, color: '#1a1a1a' }}>
-                          {ageMin} – {ageMax === 30 ? '30+' : ageMax}
-                        </span>
+                        <span>{ageMin} – {ageMax === 30 ? '30+' : ageMax}</span>
                         <span>30+</span>
                       </div>
                     </div>
                   </div>
-
                 </div>
 
-                {/* ── Profile photo ── */}
-                <div className="friend-photo-col">
-                  <label className="cl-label">Profile photo</label>
-                  <div
-                    className="friend-photo-box"
-                    onClick={() => photoRef.current?.click()}
-                  >
-                    {photoPreview ? (
-                      <>
-                        <img src={photoPreview} alt="Preview" className="friend-photo-preview" />
-                        <button
-                          type="button"
-                          className="friend-photo-remove"
-                          onClick={e => { e.stopPropagation(); removePhoto() }}
-                        >✕</button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="friend-photo-icon">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.5" width="40" height="40">
-                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
-                          </svg>
-                        </div>
-                        <p className="friend-photo-label">Add a photo</p>
-                        <p className="friend-photo-hint">JPG, PNG up to 5MB</p>
-                      </>
-                    )}
-                  </div>
-                  <input
-                    ref={photoRef}
-                    type="file"
-                    accept="image/jpeg,image/png"
-                    style={{ display: 'none' }}
-                    onChange={handlePhotoChange}
-                  />
-                </div>
 
-              </div>{/* end friend-inner-grid */}
+              </div>{/* end unified form */}
 
               {/* Trust bar */}
               <div className="friend-trust-bar">
@@ -438,11 +369,13 @@ export default function CreateFriendListing() {
             </div>
             <div className="cl-footer-bar__right">
               <div className="cl-footer-bar__btns">
-                <button type="button" className="cl-next-btn" onClick={handleNext}>
-                  Next: Your vibe &amp; interests
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
+                <button type="button" className="cl-next-btn" onClick={handleNext} disabled={loadingEdit}>
+                  {loadingEdit ? 'Loading…' : 'Next: Your vibe & interests'}
+                  {!loadingEdit && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
+                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                  )}
                 </button>
               </div>
               <p className="cl-footer-bar__note">One-time payment of €1 to publish</p>

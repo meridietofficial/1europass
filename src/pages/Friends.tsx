@@ -1,19 +1,60 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import CategoryComingSoon from '../components/CategoryComingSoon'
 import { useCategoryActive } from '../hooks/useCategoryActive'
+import { apiGet } from '../api/client'
+import { ENDPOINTS } from '../api/endpoints'
+
+interface ApiFriendListing {
+  id: string
+  title: string
+  looking_for: string
+  age_min: number
+  age_max: number
+  vibes: string | string[] | null
+  interests: string | string[] | null
+  bio: string | null
+  created_at: string
+  full_name: string
+  city: string | null
+  country: string | null
+  language: string | null
+  profile_picture: string | null
+}
+
+function parseJsonArray(val: string | string[] | null): string[] {
+  if (!val) return []
+  if (Array.isArray(val)) return val
+  try { return JSON.parse(val) } catch { return [] }
+}
+
+function getInitials(name: string) {
+  return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
+}
+
+const GRADIENTS = [
+  'linear-gradient(135deg,#a8edea,#fed6e3)',
+  'linear-gradient(135deg,#ffecd2,#fcb69f)',
+  'linear-gradient(135deg,#c3cfe2,#f5f7fa)',
+  'linear-gradient(135deg,#d4fc79,#96e6a1)',
+  'linear-gradient(135deg,#f8b195,#f67280)',
+  'linear-gradient(135deg,#a29bfe,#6c5ce7)',
+  'linear-gradient(135deg,#fd79a8,#e84393)',
+  'linear-gradient(135deg,#55efc4,#00b894)',
+  'linear-gradient(135deg,#fdcb6e,#e17055)',
+]
 
 const INTEREST_TABS = [
-  { name: 'All',        icon: <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg> },
-  { name: 'Sports',     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M14.83 9.17l4.24-4.24M4.93 19.07l4.24-4.24"/></svg> },
-  { name: 'Music',      icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> },
-  { name: 'Gaming',     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><rect x="2" y="6" width="20" height="12" rx="4"/><path d="M6 12h4M8 10v4"/><circle cx="16" cy="11" r="1" fill="currentColor"/><circle cx="18" cy="13" r="1" fill="currentColor"/></svg> },
-  { name: 'Travel',     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> },
-  { name: 'Art',        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg> },
-  { name: 'Cooking',    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg> },
+  { name: 'All',     icon: <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg> },
+  { name: 'Sports',  icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M14.83 9.17l4.24-4.24M4.93 19.07l4.24-4.24"/></svg> },
+  { name: 'Music',   icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> },
+  { name: 'Gaming',  icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><rect x="2" y="6" width="20" height="12" rx="4"/><path d="M6 12h4M8 10v4"/><circle cx="16" cy="11" r="1" fill="currentColor"/><circle cx="18" cy="13" r="1" fill="currentColor"/></svg> },
+  { name: 'Travel',  icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> },
+  { name: 'Art',     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg> },
+  { name: 'Cooking', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg> },
 ]
 
 const TAG_COLORS: Record<string, string> = {
@@ -28,18 +69,6 @@ const TAG_COLORS: Record<string, string> = {
   Travel: '#e3f2fd', Languages: '#e8f5e9', Movies: '#fce4ec',
 }
 
-const PROFILES = [
-  { id: 1, name: 'Sofia R.',    age: 21, initials: 'SR', gradient: 'linear-gradient(135deg,#a8edea,#fed6e3)', city: 'Amsterdam', university: 'University of Amsterdam', tags: ['Reading', 'Yoga', 'Travel'], bio: 'Exchange student from Italy. Love coffee, books & long walks.', verified: true, mutual: 3 },
-  { id: 2, name: 'Lukas M.',    age: 23, initials: 'LM', gradient: 'linear-gradient(135deg,#ffecd2,#fcb69f)', city: 'Berlin', university: 'Humboldt University', tags: ['Football', 'Gaming', 'Cooking'], bio: 'CS student always down for a FIFA match or a cook-off.', verified: true, mutual: 5 },
-  { id: 3, name: 'Anna W.',     age: 20, initials: 'AW', gradient: 'linear-gradient(135deg,#c3cfe2,#f5f7fa)', city: 'Prague', university: 'Charles University', tags: ['Photography', 'Travel', 'Languages'], bio: 'Capturing every moment. Speak 4 languages, learning a 5th.', verified: false, mutual: 1 },
-  { id: 4, name: 'Carlos D.',   age: 22, initials: 'CD', gradient: 'linear-gradient(135deg,#d4fc79,#96e6a1)', city: 'Barcelona', university: 'Universitat de Barcelona', tags: ['Guitar', 'Hiking', 'Movies'], bio: 'Music & mountains — that’s my vibe. Always up for a jam session.', verified: true, mutual: 8 },
-  { id: 5, name: 'Emma K.',     age: 21, initials: 'EK', gradient: 'linear-gradient(135deg,#f8b195,#f67280)', city: 'Paris', university: 'Sorbonne University', tags: ['Painting', 'Baking', 'Yoga'], bio: 'Art student who bakes too much and does yoga to make up for it.', verified: true, mutual: 2 },
-  { id: 6, name: 'Marco V.',    age: 24, initials: 'MV', gradient: 'linear-gradient(135deg,#a29bfe,#6c5ce7)', city: 'Milan', university: 'Politecnico di Milano', tags: ['Gym', 'Cooking', 'Podcasts'], bio: 'Engineering student. Into fitness, good food and long podcasts.', verified: false, mutual: 4 },
-  { id: 7, name: 'Klara B.',    age: 20, initials: 'KB', gradient: 'linear-gradient(135deg,#fd79a8,#e84393)', city: 'Vienna', university: 'University of Vienna', tags: ['Piano', 'Reading', 'Dancing'], bio: 'Classical pianist by day, salsa dancer by night.', verified: true, mutual: 6 },
-  { id: 8, name: 'Nikos P.',    age: 22, initials: 'NP', gradient: 'linear-gradient(135deg,#55efc4,#00b894)', city: 'Athens', university: 'University of Athens', tags: ['Basketball', 'Gaming', 'Movies'], bio: "Sports fan, gamer and movie buff — let's hang!", verified: true, mutual: 0 },
-  { id: 9, name: 'Maja T.',     age: 23, initials: 'MT', gradient: 'linear-gradient(135deg,#fdcb6e,#e17055)', city: 'Krakow', university: 'Jagiellonian University', tags: ['Cycling', 'Writing', 'Vegan'], bio: 'Cycling across Poland one route at a time. Vegan cook.', verified: false, mutual: 3 },
-]
-
 const CITIES = ['All Cities', 'Amsterdam', 'Berlin', 'Barcelona', 'Prague', 'Paris', 'Milan', 'Vienna', 'Athens']
 
 export default function Friends() {
@@ -47,17 +76,29 @@ export default function Friends() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('All')
   const [activeCity, setActiveCity] = useState('All Cities')
-  const [connections, setConnections] = useState<number[]>([])
+  const [connections, setConnections] = useState<string[]>([])
+  const [listings, setListings] = useState<ApiFriendListing[]>([])
+  const [fetching, setFetching] = useState(true)
+
+  useEffect(() => {
+    setFetching(true)
+    apiGet<{ success: boolean; data: ApiFriendListing[] }>(ENDPOINTS.friend.list)
+      .then(res => setListings(res.data))
+      .catch(() => setListings([]))
+      .finally(() => setFetching(false))
+  }, [])
 
   if (loading) return null
   if (!active) return <CategoryComingSoon name="Friends" />
 
-  const toggleConnect = (id: number) =>
+  const toggleConnect = (id: string) =>
     setConnections(c => c.includes(id) ? c.filter(x => x !== id) : [...c, id])
 
-  const filtered = PROFILES.filter(p =>
+  const filtered = listings.filter(p =>
     (activeCity === 'All Cities' || p.city === activeCity) &&
-    (activeTab === 'All' || p.tags.some(t => t.toLowerCase().includes(activeTab.toLowerCase().slice(0, 4))))
+    (activeTab === 'All' || parseJsonArray(p.interests).some(t =>
+      t.toLowerCase().includes(activeTab.toLowerCase().slice(0, 4))
+    ))
   )
 
   return (
@@ -71,76 +112,62 @@ export default function Friends() {
       <main className="fr">
 
         {/* ── HERO ── */}
-        <div className="roommates__hero">
-          <div className="roommates__hero-left">
-            <h1 className="roommates__hero-title">
-              Make Friends.<br />
-              <span className="roommates__hero-accent">Build Bonds.</span>
+        <div className="fr__hero">
+          <div className="fr__hero-left">
+            <h1 className="fr__hero-title">
+              Find a <span className="fr__hero-accent">Friend.</span>
             </h1>
-            <p style={{ width: 340, fontFamily: 'Nunito, sans-serif', fontWeight: 700, fontSize: 16, lineHeight: '25px', color: '#40493E', margin: 0 }}>
-              Connect with students who share your interests — across your city, your campus, and all of Europe.
+            <p className="fr__hero-sub">
+              Meet amazing students, make new connections and build your network across Europe.
             </p>
 
-            <div className="hero__trust" style={{ marginTop: 8 }}>
-              <div className="hero__trust-item">
-                <img src="/icon-secure.png" alt="" className="hero__trust-icon" />
-                <div className="hero__trust-label">Verified<br />Students</div>
+            <div className="fr__hero-features">
+              <div className="fr__hero-feature">
+                <div className="fr__hero-feature-icon">
+                  <svg viewBox="0 0 40 40" fill="none" width="36" height="36">
+                    <circle cx="20" cy="20" r="20" fill="#e8f5e9"/>
+                    <path d="M20 22c-3.5 0-6-1.5-6-3.5V17c0-2 1.8-3.5 6-3.5s6 1.5 6 3.5v1.5c0 2-2.5 3.5-6 3.5z" fill="#5DAE61" opacity=".4"/>
+                    <circle cx="20" cy="15" r="4" fill="#5DAE61"/>
+                    <path d="M10 29c0-3.5 4.5-5.5 10-5.5s10 2 10 5.5" stroke="#5DAE61" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+                  </svg>
+                </div>
+                <div>
+                  <div className="fr__hero-feature-title">Real Connections</div>
+                  <div className="fr__hero-feature-desc">Find students who share your interests</div>
+                </div>
               </div>
-              <div className="hero__trust-item">
-                <img src="/icon-heart.png" alt="" className="hero__trust-icon" />
-                <div className="hero__trust-label">Shared<br />Interests</div>
+              <div className="fr__hero-feature">
+                <div className="fr__hero-feature-icon">
+                  <svg viewBox="0 0 40 40" fill="none" width="36" height="36">
+                    <circle cx="20" cy="20" r="20" fill="#fce4ec"/>
+                    <path d="M20 28s-8-4.5-8-10a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 28 18c0 5.5-8 10-8 10z" fill="#e84393" opacity=".6"/>
+                  </svg>
+                </div>
+                <div>
+                  <div className="fr__hero-feature-title">Same Vibes</div>
+                  <div className="fr__hero-feature-desc">Make friends for study, travel and life</div>
+                </div>
               </div>
-              <div className="hero__trust-item">
-                <img src="/icon-tag.png" alt="" className="hero__trust-icon" />
-                <div className="hero__trust-label">Free to<br />Connect</div>
+              <div className="fr__hero-feature">
+                <div className="fr__hero-feature-icon">
+                  <svg viewBox="0 0 40 40" fill="none" width="36" height="36">
+                    <circle cx="20" cy="20" r="20" fill="#e3f2fd"/>
+                    <circle cx="20" cy="20" r="8" stroke="#1976d2" strokeWidth="1.5" fill="none"/>
+                    <line x1="12" y1="20" x2="28" y2="20" stroke="#1976d2" strokeWidth="1.5"/>
+                    <path d="M20 12a10 10 0 0 1 3 8 10 10 0 0 1-3 8" stroke="#1976d2" strokeWidth="1.5" fill="none"/>
+                    <path d="M20 12a10 10 0 0 0-3 8 10 10 0 0 0 3 8" stroke="#1976d2" strokeWidth="1.5" fill="none"/>
+                  </svg>
+                </div>
+                <div>
+                  <div className="fr__hero-feature-title">Across Europe</div>
+                  <div className="fr__hero-feature-desc">Connect locally and internationally</div>
+                </div>
               </div>
-            </div>
-
-            <div className="roommates__social-proof" style={{ marginTop: 8 }}>
-              <div className="roommates__social-avatars">
-                <div className="roommates__social-avatar" style={{ background: 'linear-gradient(135deg,#a8edea,#fed6e3)' }}>SR</div>
-                <div className="roommates__social-avatar" style={{ background: 'linear-gradient(135deg,#ffecd2,#fcb69f)' }}>LM</div>
-                <div className="roommates__social-avatar" style={{ background: 'linear-gradient(135deg,#d4fc79,#96e6a1)' }}>CD</div>
-                <div className="roommates__social-avatar" style={{ background: 'linear-gradient(135deg,#a29bfe,#6c5ce7)' }}>MV</div>
-              </div>
-              <span className="roommates__social-text"><strong>25,000+</strong> students<br />already connected!</span>
             </div>
           </div>
 
-          <div className="roommates__hero-right">
-            {/* Illustrated placeholder using CSS art */}
-            <div className="fr__hero-illustration">
-              <div className="fr__hero-blob fr__hero-blob--1" />
-              <div className="fr__hero-blob fr__hero-blob--2" />
-              <div className="fr__hero-card fr__hero-card--1">
-                <div className="fr__hero-card-avatar" style={{ background: 'linear-gradient(135deg,#a8edea,#fed6e3)' }}>SR</div>
-                <div>
-                  <div className="fr__hero-card-name">Sofia R.</div>
-                  <div className="fr__hero-card-tags">Travel · Yoga · Reading</div>
-                </div>
-                <div className="fr__hero-card-btn">Connect</div>
-              </div>
-              <div className="fr__hero-card fr__hero-card--2">
-                <div className="fr__hero-card-avatar" style={{ background: 'linear-gradient(135deg,#d4fc79,#96e6a1)' }}>CD</div>
-                <div>
-                  <div className="fr__hero-card-name">Carlos D.</div>
-                  <div className="fr__hero-card-tags">Guitar · Hiking · Movies</div>
-                </div>
-                <div className="fr__hero-card-btn">Connect</div>
-              </div>
-              <div className="fr__hero-card fr__hero-card--3">
-                <div className="fr__hero-card-avatar" style={{ background: 'linear-gradient(135deg,#fd79a8,#e84393)' }}>KB</div>
-                <div>
-                  <div className="fr__hero-card-name">Klara B.</div>
-                  <div className="fr__hero-card-tags">Piano · Dancing</div>
-                </div>
-                <div className="fr__hero-card-btn">Connect</div>
-              </div>
-              <div className="fr__hero-mutual">
-                <svg viewBox="0 0 24 24" fill="#5dae61" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span>8 mutual friends</span>
-              </div>
-            </div>
+          <div className="fr__hero-right-img">
+            <img src="/friends-hero.svg" alt="Find a friend illustration" className="fr__hero-svg" />
           </div>
         </div>
 
@@ -194,16 +221,6 @@ export default function Friends() {
               </div>
 
               <div className="trp__filter-group">
-                <label className="trp__filter-label">University</label>
-                <div className="trp__input-wrap">
-                  <input className="trp__input" placeholder="Enter university..." />
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2" width="16" height="16" className="trp__input-icon">
-                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
-                  </svg>
-                </div>
-              </div>
-
-              <div className="trp__filter-group">
                 <label className="trp__filter-label">Interests</label>
                 {['Sports', 'Music', 'Gaming', 'Travel', 'Art & Creativity', 'Cooking'].map(opt => (
                   <label key={opt} className="trp__checkbox-row">
@@ -211,14 +228,6 @@ export default function Friends() {
                     {opt}
                   </label>
                 ))}
-              </div>
-
-              <div className="trp__filter-group">
-                <label className="trp__filter-label">Only verified students</label>
-                <label className="trp__checkbox-row">
-                  <input type="checkbox" className="trp__checkbox" />
-                  Verified only
-                </label>
               </div>
 
               <div className="trp__filter-actions">
@@ -230,12 +239,16 @@ export default function Friends() {
             {/* Profiles grid */}
             <div className="fr__results">
               <div className="trp__listings-bar">
-                <p className="trp__listings-count">Showing <strong>{filtered.length} students</strong></p>
+                <p className="trp__listings-count">
+                  {fetching
+                    ? 'Loading students...'
+                    : <span>Showing <strong>{filtered.length} student{filtered.length !== 1 ? 's' : ''}</strong></span>
+                  }
+                </p>
                 <div className="trp__listings-bar-right">
                   <div className="trp__sort-wrap">
                     <select className="trp__sort-select">
                       <option>Sort by: Recommended</option>
-                      <option>Most mutual friends</option>
                       <option>Newest joined</option>
                     </select>
                     <svg viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" width="13" height="13" className="trp__sort-icon"><polyline points="6 9 12 15 18 9"/></svg>
@@ -243,66 +256,96 @@ export default function Friends() {
                 </div>
               </div>
 
-              <div className="fr__grid">
-                {filtered.map(p => (
-                  <div key={p.id} className="fr-card" onClick={() => navigate(`/friends/${p.id}`)}>
-                    <div className="fr-card__top" style={{ background: p.gradient }}>
-                      {p.verified && <span className="fr-card__verified">✔ VERIFIED</span>}
-                      <button
-                        className={`fr-card__connect${connections.includes(p.id) ? ' fr-card__connect--active' : ''}`}
-                        onClick={e => { e.stopPropagation(); toggleConnect(p.id) }}
-                        title={connections.includes(p.id) ? 'Connected' : 'Connect'}
-                      >
-                        <svg viewBox="0 0 24 24" fill={connections.includes(p.id) ? '#5dae61' : 'none'} stroke={connections.includes(p.id) ? '#5dae61' : '#555'} strokeWidth="2" width="15" height="15">
-                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                        </svg>
-                      </button>
-                      <div className="fr-card__avatar-wrap">
-                        <div className="fr-card__avatar">{p.initials}</div>
+              {fetching ? (
+                <div style={{ padding: '60px 0', textAlign: 'center', color: '#888', fontSize: 15 }}>
+                  Loading...
+                </div>
+              ) : filtered.length === 0 ? (
+                <div style={{ padding: '60px 0', textAlign: 'center' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5" width="48" height="48" style={{ marginBottom: 16 }}>
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                  <p style={{ color: '#888', fontSize: 15, margin: 0 }}>No students found yet.</p>
+                  <p style={{ color: '#bbb', fontSize: 13, marginTop: 6 }}>Be the first to create a friend listing!</p>
+                  <button
+                    className="trp__apply-btn"
+                    style={{ marginTop: 16 }}
+                    onClick={() => navigate('/create-friend-listing')}
+                  >
+                    Create your listing
+                  </button>
+                </div>
+              ) : (
+                <div className="fr__grid">
+                  {filtered.map((p, idx) => {
+                    const tags = parseJsonArray(p.interests)
+                    const isConnected = connections.includes(p.id)
+                    const gradient = GRADIENTS[idx % GRADIENTS.length]
+                    const initials = getInitials(p.full_name)
+                    return (
+                      <div key={p.id} className="fr-card" onClick={() => navigate(`/friends/${p.id}`)}>
+                        <div className="fr-card__top" style={{ background: gradient }}>
+                          <button
+                            className={`fr-card__connect${isConnected ? ' fr-card__connect--active' : ''}`}
+                            onClick={e => { e.stopPropagation(); toggleConnect(p.id) }}
+                            title={isConnected ? 'Connected' : 'Connect'}
+                          >
+                            <svg viewBox="0 0 24 24" fill={isConnected ? '#5dae61' : 'none'} stroke={isConnected ? '#5dae61' : '#555'} strokeWidth="2" width="15" height="15">
+                              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                          </button>
+                          <div className="fr-card__avatar-wrap">
+                            {p.profile_picture
+                              ? <img src={p.profile_picture} alt={p.full_name} className="fr-card__avatar fr-card__avatar--img" />
+                              : <div className="fr-card__avatar">{initials}</div>
+                            }
+                          </div>
+                        </div>
+                        <div className="fr-card__body">
+                          <div className="fr-card__name-row">
+                            <span className="fr-card__name">{p.full_name}</span>
+                            <span style={{ fontSize: 12, color: '#888' }}>{p.age_min}–{p.age_max} yrs</span>
+                          </div>
+                          {p.city && (
+                            <div className="fr-card__location">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="12" height="12"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                              {p.city}{p.country ? `, ${p.country}` : ''}
+                            </div>
+                          )}
+                          {p.bio && <p className="fr-card__bio">{p.bio}</p>}
+                          {tags.length > 0 && (
+                            <div className="fr-card__tags">
+                              {tags.map(tag => (
+                                <span key={tag} className="fr-card__tag" style={{ background: TAG_COLORS[tag] || '#f5f5f5' }}>{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                          <div className="fr-card__footer">
+                            <button className="fr-card__view" onClick={e => { e.stopPropagation(); navigate(`/friends/${p.id}`) }}>View profile</button>
+                            <button
+                              className={`fr-card__add${isConnected ? ' fr-card__add--done' : ''}`}
+                              onClick={e => { e.stopPropagation(); toggleConnect(p.id) }}
+                            >
+                              {isConnected ? 'Connected ✓' : '+ Connect'}
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="fr-card__body">
-                      <div className="fr-card__name-row">
-                        <span className="fr-card__name">{p.name}, {p.age}</span>
-                        {p.mutual > 0 && (
-                          <span className="fr-card__mutual">
-                            <svg viewBox="0 0 24 24" fill="#5dae61" width="11" height="11"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                            {p.mutual} mutual
-                          </span>
-                        )}
-                      </div>
-                      <div className="fr-card__location">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="12" height="12"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        {p.city}
-                      </div>
-                      <div className="fr-card__uni">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" width="12" height="12"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-                        {p.university}
-                      </div>
-                      <p className="fr-card__bio">{p.bio}</p>
-                      <div className="fr-card__tags">
-                        {p.tags.map(tag => (
-                          <span key={tag} className="fr-card__tag" style={{ background: TAG_COLORS[tag] || '#f5f5f5' }}>{tag}</span>
-                        ))}
-                      </div>
-                      <div className="fr-card__footer">
-                        <button className="fr-card__view" onClick={e => { e.stopPropagation(); navigate(`/friends/${p.id}`) }}>View profile</button>
-                        <button className={`fr-card__add${connections.includes(p.id) ? ' fr-card__add--done' : ''}`} onClick={e => { e.stopPropagation(); toggleConnect(p.id) }}>
-                          {connections.includes(p.id) ? 'Connected ✓' : '+ Connect'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    )
+                  })}
+                </div>
+              )}
 
-              <div className="trp__load-more-wrap">
-                <button className="trp__load-more">
-                  Load more students
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
+              {!fetching && filtered.length > 0 && (
+                <div className="trp__load-more-wrap">
+                  <button className="trp__load-more">
+                    Load more students
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -409,8 +452,7 @@ export default function Friends() {
             <p className="rm-cta__launch">Launching on 21 September 2026</p>
           </div>
 
-        </div>{/* end roommates__content-card */}
-
+        </div>
       </main>
       <Footer />
     </>

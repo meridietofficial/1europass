@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import { apiPost, apiPut, apiPatch } from '../api/client'
+import { ENDPOINTS } from '../api/endpoints'
 
 interface Step1Data {
-  name: string
-  city: string
-  university: string
-  field: string
-  year: string
+  title: string
   lookingFor: string
   ageMin: number
   ageMax: number
@@ -24,14 +22,18 @@ const INTEREST_LABELS: Record<string, string> = {
   travel: 'Travel', study: 'Study buddy', sports: 'Sports', music: 'Music',
   art: 'Art', gaming: 'Gaming', fitness: 'Fitness', food: 'Food & Cafes',
   photo: 'Photography', movies: 'Movies', events: 'Events', language: 'Language exchange',
-  reading: 'Reading', hiking: 'Hiking', cycling: 'Cycling', volunteer: 'Volunteering', other: 'Other',
+  reading: 'Reading', hiking: 'Hiking', cycling: 'Cycling', volunteer: 'Volunteering',
+  cooking: 'Cooking', dancing: 'Dancing', yoga: 'Yoga / Meditation', tech: 'Tech / Coding',
+  boardgames: 'Board games', anime: 'Anime / Manga', fashion: 'Fashion', nature: 'Nature / Outdoors',
+  other: 'Other',
 }
 
 export default function CreateFriendReview() {
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
   const [step1, setStep1] = useState<Step1Data | null>(null)
   const [step2, setStep2] = useState<Step2Data | null>(null)
-  const [autoTranslate, setAutoTranslate] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     const s1 = sessionStorage.getItem('friend_step1')
@@ -40,6 +42,7 @@ export default function CreateFriendReview() {
     if (s2) setStep2(JSON.parse(s2))
   }, [])
 
+  const title = step1?.title ?? ''
   const lookingFor = step1?.lookingFor ?? '—'
   const ageMin = step1?.ageMin ?? 18
   const ageMax = step1?.ageMax ?? 30
@@ -50,11 +53,51 @@ export default function CreateFriendReview() {
     : interestLabels.join(', ')
   const bio = step2?.bio ?? ''
 
-  function handlePublish() {
+  function clearSession() {
     sessionStorage.removeItem('friend_step1')
     sessionStorage.removeItem('friend_step2')
-    navigate('/profile')
   }
+
+  async function submitListing(publish: boolean) {
+    if (submitting) return
+    setSubmitting(true)
+    try {
+      const body = {
+        title:       step1?.title ?? '',
+        looking_for: step1?.lookingFor ?? 'Anyone',
+        age_min:     step1?.ageMin ?? 18,
+        age_max:     step1?.ageMax ?? 30,
+        vibes:       step2?.vibes ?? [],
+        interests:   step2?.interests ?? [],
+        bio:         step2?.bio ?? '',
+      }
+
+      let listingId: string
+      if (id) {
+        await apiPut(ENDPOINTS.friend.update(id), body)
+        listingId = id
+      } else {
+        const res = await apiPost<{ success: boolean; data: { id: string } }>(
+          ENDPOINTS.friend.create, body,
+        )
+        listingId = res.data.id
+      }
+
+      if (publish) {
+        await apiPatch(ENDPOINTS.friend.status(listingId), { status: 'pending' })
+      }
+
+      clearSession()
+      navigate('/profile#listings')
+    } catch {
+      alert('Something went wrong. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function handleSaveDraft()  { submitListing(false) }
+  function handlePublish()    { submitListing(true) }
 
   return (
     <>
@@ -141,7 +184,7 @@ export default function CreateFriendReview() {
                       <div className="fr-review-sub">Please check all details before publishing. You can go back to edit if needed.</div>
                     </div>
                   </div>
-                  <button className="fr-edit-all-btn" onClick={() => navigate('/profile/post/friend')}>
+                  <button className="fr-edit-all-btn" onClick={() => navigate(id ? `/profile/post/friend/edit/${id}` : '/profile/post/friend')}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
@@ -151,6 +194,22 @@ export default function CreateFriendReview() {
 
                 {/* Review rows */}
                 <div className="fr-review-rows">
+
+                  {/* Title */}
+                  <div className="fr-review-row">
+                    <div className="fr-review-row__icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="20" height="20">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                      </svg>
+                    </div>
+                    <div className="fr-review-row__body">
+                      <div className="fr-review-row__label">
+                        Listing Title
+                        <button className="fr-edit-link" onClick={() => navigate(id ? `/profile/post/friend/edit/${id}` : '/profile/post/friend')}>Edit</button>
+                      </div>
+                      <div className="fr-review-row__value">{title || '—'}</div>
+                    </div>
+                  </div>
 
                   {/* Looking for */}
                   <div className="fr-review-row">
@@ -162,7 +221,7 @@ export default function CreateFriendReview() {
                     <div className="fr-review-row__body">
                       <div className="fr-review-row__label">
                         Looking for
-                        <button className="fr-edit-link" onClick={() => navigate('/profile/post/friend')}>Edit</button>
+                        <button className="fr-edit-link" onClick={() => navigate(id ? `/profile/post/friend/edit/${id}` : '/profile/post/friend')}>Edit</button>
                       </div>
                       <div className="fr-review-row__value">{lookingFor.toUpperCase()} {lookingFor === 'Anyone' ? '(NO PREFERENCE)' : ''}</div>
                     </div>
@@ -178,7 +237,7 @@ export default function CreateFriendReview() {
                     <div className="fr-review-row__body">
                       <div className="fr-review-row__label">
                         Preferred age range
-                        <button className="fr-edit-link" onClick={() => navigate('/profile/post/friend')}>Edit</button>
+                        <button className="fr-edit-link" onClick={() => navigate(id ? `/profile/post/friend/edit/${id}` : '/profile/post/friend')}>Edit</button>
                       </div>
                       <div className="fr-review-row__value">{ageMin} – {ageMax === 30 ? '30+' : ageMax}</div>
                     </div>
@@ -194,7 +253,7 @@ export default function CreateFriendReview() {
                     <div className="fr-review-row__body">
                       <div className="fr-review-row__label">
                         Interests
-                        <button className="fr-edit-link" onClick={() => navigate('/profile/post/friend/vibe')}>Edit</button>
+                        <button className="fr-edit-link" onClick={() => navigate(id ? `/profile/post/friend/edit/${id}/vibe` : '/profile/post/friend/vibe')}>Edit</button>
                       </div>
                       <div className="fr-review-row__value">
                         {displayInterests || '—'}
@@ -212,12 +271,28 @@ export default function CreateFriendReview() {
                     <div className="fr-review-row__body">
                       <div className="fr-review-row__label">
                         Description
-                        <button className="fr-edit-link" onClick={() => navigate('/profile/post/friend/vibe')}>Edit</button>
+                        <button className="fr-edit-link" onClick={() => navigate(id ? `/profile/post/friend/edit/${id}/vibe` : '/profile/post/friend/vibe')}>Edit</button>
                       </div>
                       <div className="fr-review-row__value">{bio ? bio.toUpperCase() : '—'}</div>
                     </div>
                   </div>
 
+                </div>
+
+                {/* Profile shared notice */}
+                <div className="fr-profile-shared-box">
+                  <div className="fr-profile-shared-box__icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="20" height="20">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="fr-profile-shared-box__title">Your profile details will be shared</div>
+                    <div className="fr-profile-shared-box__sub">
+                      Potential friends will be able to see your name, photo, location, and language. This helps them decide if you're a good match.
+                      <span> <a href="/profile/edit" className="fr-profile-shared-box__link">Update your profile →</a></span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Privacy box */}
@@ -232,47 +307,6 @@ export default function CreateFriendReview() {
                   </div>
                 </div>
 
-                {/* Action cards */}
-                <div className="fr-action-cards">
-
-                  {/* Verify Yourself */}
-                  <div className="fr-action-card">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="22" height="22">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
-                    </svg>
-                    <div className="fr-action-card__title">Verify Yourself <span style={{ fontWeight: 500, fontSize: 11, color: '#9ca3af' }}>(Optional)</span></div>
-                    <div className="fr-action-card__sub">Get a verified badge to build trust and get more enquiries.</div>
-                    <button className="fr-action-outline-btn">Verify Now</button>
-                  </div>
-
-                  {/* Save as Draft */}
-                  <div className="fr-action-card">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="22" height="22">
-                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-                    </svg>
-                    <div className="fr-action-card__title">Save as Draft</div>
-                    <div className="fr-action-card__sub">You can save and continue later.</div>
-                    <button className="fr-action-outline-btn">Save Draft</button>
-                  </div>
-
-                  {/* Auto Translate */}
-                  <div className="fr-action-card">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#5dae61" strokeWidth="2" width="22" height="22">
-                      <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                    </svg>
-                    <div className="fr-action-card__title">Auto Translate</div>
-                    <div className="fr-action-card__sub">Your listing will be automatically translated to 15+ languages.</div>
-                    <button
-                      type="button"
-                      className={`fr-toggle${autoTranslate ? ' is-on' : ''}`}
-                      onClick={() => setAutoTranslate(v => !v)}
-                      aria-label="Toggle auto translate"
-                    >
-                      <span className="fr-toggle__thumb" />
-                    </button>
-                  </div>
-
-                </div>
 
               </div>
             </div>{/* end cl-left */}
@@ -329,43 +363,6 @@ export default function CreateFriendReview() {
                 </div>
               </div>
 
-              {/* Order summary */}
-              <div className="fr-order-card">
-                <div className="fr-order-title">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" width="15" height="15">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                  </svg>
-                  Order summary
-                </div>
-                <div className="fr-order-rows">
-                  <div className="fr-order-row">
-                    <span>Listing type</span><span>Find a Friend</span>
-                  </div>
-                  <div className="fr-order-row">
-                    <span>Duration</span><span>7 days</span>
-                  </div>
-                </div>
-                <div className="fr-order-total">
-                  <span>Total</span><span style={{ color: '#5dae61', fontWeight: 800 }}>€1.00</span>
-                </div>
-                <button className="fr-pay-btn" onClick={handlePublish}>
-                  Pay €1.00 &amp; Publish Listing
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
-                </button>
-                <div className="fr-pay-secure">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" width="12" height="12">
-                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  </svg>
-                  Secure payment via Stripe. Your payment is safe with us.
-                </div>
-                <div className="fr-pay-methods">
-                  <span className="fr-pay-badge">VISA</span>
-                  <span className="fr-pay-badge">MC</span>
-                  <span className="fr-pay-badge">⌘Pay</span>
-                </div>
-              </div>
 
             </aside>
 
@@ -394,17 +391,25 @@ export default function CreateFriendReview() {
             </div>
             <div className="cl-footer-bar__right">
               <div className="cl-footer-bar__btns">
-                <button type="button" className="cl-next-btn" style={{ background: '#fff', color: '#1a1a1a', borderColor: '#1a1a1a' }} onClick={() => navigate('/profile/post/friend/vibe')}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
+                <button type="button" className="cl-back-btn" disabled={submitting} onClick={() => navigate(id ? `/profile/post/friend/edit/${id}/vibe` : '/profile/post/friend/vibe')}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15">
                     <path d="M19 12H5M12 19l-7-7 7-7"/>
                   </svg>
                   Back
                 </button>
-                <button type="button" className="cl-next-btn" onClick={handlePublish}>
-                  Publish Listing
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                <button type="button" className="cl-back-btn" disabled={submitting} onClick={handleSaveDraft}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
                   </svg>
+                  {submitting ? 'Saving…' : 'Save as Draft'}
+                </button>
+                <button type="button" className="rv-publish-btn" disabled={submitting} onClick={handlePublish}>
+                  {submitting ? 'Publishing…' : 'Publish Listing'}
+                  {!submitting && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17">
+                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                  )}
                 </button>
               </div>
               <p className="cl-footer-bar__note">One-time payment of €1 to publish</p>

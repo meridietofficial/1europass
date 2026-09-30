@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import { createTripDraft, updateTripListing, getTripListing } from '../api/trip'
 
 const TRIP_TYPES = [
   'Weekend Trip', 'Day Trip', 'City Break', 'Road Trip',
@@ -49,6 +50,8 @@ const WHO_CAN_JOIN = [
 
 export default function CreateTripListing() {
   const navigate = useNavigate()
+  const { id: editId } = useParams<{ id: string }>()
+  const isEdit = Boolean(editId)
 
   const [title, setTitle] = useState('')
   const [destination, setDestination] = useState('')
@@ -61,11 +64,101 @@ export default function CreateTripListing() {
   const [meetingPoint, setMeetingPoint] = useState('')
   const [description, setDescription] = useState('')
   const [whoCanJoin, setWhoCanJoin] = useState<string[]>(['solo'])
+  const [saving, setSaving] = useState(false)
+  const [shaking, setShaking] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!editId) return
+    getTripListing(editId).then(data => {
+      if (data.title)         setTitle(data.title)
+      if (data.destination)   setDestination(data.destination)
+      if (data.trip_type)     setTripType(data.trip_type)
+      if (data.category)      setCategory(data.category)
+      if (data.duration)      setDuration(data.duration)
+      if (data.start_date)    setStartDate(data.start_date.slice(0, 10))
+      if (data.end_date)      setEndDate(data.end_date.slice(0, 10))
+      if (data.budget)        setBudget(String(data.budget))
+      if (data.meeting_point) setMeetingPoint(data.meeting_point)
+      if (data.description)   setDescription(data.description)
+      if (data.who_can_join)  setWhoCanJoin(data.who_can_join)
+    }).catch(() => {})
+  }, [editId])
+
+  const titleRef        = useRef<HTMLInputElement>(null)
+  const destinationRef  = useRef<HTMLInputElement>(null)
+  const tripTypeRef     = useRef<HTMLDivElement>(null)
+  const startDateRef    = useRef<HTMLInputElement>(null)
+  const endDateRef      = useRef<HTMLInputElement>(null)
+  const budgetRef       = useRef<HTMLInputElement>(null)
+  const meetingPointRef = useRef<HTMLInputElement>(null)
+  const descriptionRef  = useRef<HTMLTextAreaElement>(null)
+
+  function triggerShake(fields: string[]) {
+    setShaking(new Set())
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      setShaking(new Set(fields))
+      setTimeout(() => setShaking(new Set()), 2500)
+    }))
+  }
+  const sh = (key: string) => shaking.has(key) ? ' is-shake' : ''
+
+  const refMap: Record<string, React.RefObject<HTMLElement | null>> = {
+    title: titleRef,
+    destination: destinationRef,
+    tripType: tripTypeRef,
+    startDate: startDateRef,
+    endDate: endDateRef,
+    budget: budgetRef,
+    meetingPoint: meetingPointRef,
+    description: descriptionRef,
+  }
 
   function toggleWho(id: string) {
     setWhoCanJoin(prev =>
       prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]
     )
+  }
+
+  function validate() {
+    const empty: string[] = []
+    if (!title.trim())        empty.push('title')
+    if (!destination.trim())  empty.push('destination')
+    if (!tripType)            empty.push('tripType')
+    if (!startDate)           empty.push('startDate')
+    if (!endDate)             empty.push('endDate')
+    if (!budget || Number(budget) <= 0) empty.push('budget')
+    if (!meetingPoint.trim()) empty.push('meetingPoint')
+    if (!description.trim())  empty.push('description')
+    if (empty.length > 0) {
+      triggerShake(empty)
+      refMap[empty[0]]?.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return false
+    }
+    return true
+  }
+
+  async function handleNext() {
+    if (!validate()) return
+    setSaving(true)
+    try {
+      const payload = {
+        title, destination, trip_type: tripType, category, duration,
+        start_date: startDate, end_date: endDate,
+        budget: Number(budget), meeting_point: meetingPoint,
+        description, who_can_join: whoCanJoin,
+      }
+      if (isEdit && editId) {
+        await updateTripListing(editId, payload)
+        navigate(`/profile/post/trip/edit/${editId}/photos`)
+      } else {
+        const id = await createTripDraft(payload)
+        navigate(`/profile/post/trip/edit/${id}/photos`)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -186,7 +279,8 @@ export default function CreateTripListing() {
                     </h3>
                     <div style={{ position: 'relative' }}>
                       <input
-                        className="cl-input"
+                        ref={titleRef}
+                        className={`cl-input${sh('title')}`}
                         type="text"
                         placeholder="e.g. Weekend in Prague - Castles, Cafes & Good Vibes"
                         maxLength={80}
@@ -211,7 +305,8 @@ export default function CreateTripListing() {
                           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                         </svg>
                         <input
-                          className="cl-input cl-input--pl"
+                          ref={destinationRef}
+                          className={`cl-input cl-input--pl${sh('destination')}`}
                           type="text"
                           placeholder="Enter city, country or region"
                           value={destination}
@@ -226,7 +321,7 @@ export default function CreateTripListing() {
                         </svg>
                         Trip Type *
                       </h3>
-                      <div className="crp-select-wrap">
+                      <div ref={tripTypeRef} className={`crp-select-wrap${sh('tripType')}`}>
                         <select
                           className="crp-select"
                           value={tripType}
@@ -300,7 +395,8 @@ export default function CreateTripListing() {
                           <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                         </svg>
                         <input
-                          className="cl-input cl-input--pl"
+                          ref={startDateRef}
+                          className={`cl-input cl-input--pl${sh('startDate')}`}
                           type="date"
                           value={startDate}
                           onChange={e => setStartDate(e.target.value)}
@@ -321,7 +417,8 @@ export default function CreateTripListing() {
                           <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                         </svg>
                         <input
-                          className="cl-input cl-input--pl"
+                          ref={endDateRef}
+                          className={`cl-input cl-input--pl${sh('endDate')}`}
                           type="date"
                           value={endDate}
                           onChange={e => setEndDate(e.target.value)}
@@ -342,7 +439,8 @@ export default function CreateTripListing() {
                       <div className="cl-euro-wrap" style={{ marginTop: 6 }}>
                         <span className="cl-euro-sym">€</span>
                         <input
-                          className="cl-input cl-input--euro"
+                          ref={budgetRef}
+                          className={`cl-input cl-input--euro${sh('budget')}`}
                           type="number"
                           min="0"
                           placeholder="e.g. 150"
@@ -364,7 +462,8 @@ export default function CreateTripListing() {
                           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                         </svg>
                         <input
-                          className="cl-input cl-input--pl"
+                          ref={meetingPointRef}
+                          className={`cl-input cl-input--pl${sh('meetingPoint')}`}
                           type="text"
                           placeholder="Where will you meet or start?"
                           value={meetingPoint}
@@ -387,7 +486,8 @@ export default function CreateTripListing() {
                     </h3>
                     <p className="cl-card__sub" style={{ marginBottom: 8 }}>Describe your trip, what you'll do, places to visit, and who can join.</p>
                     <textarea
-                      className="cl-textarea"
+                      ref={descriptionRef}
+                      className={`cl-textarea${sh('description')}`}
                       rows={5}
                       placeholder="Tell potential travel buddies about your trip..."
                       value={description}
@@ -544,13 +644,13 @@ export default function CreateTripListing() {
             </div>
             <div className="cl-footer-bar__right">
               <div className="cl-footer-bar__btns">
-                <button type="button" className="cl-back-btn" onClick={() => navigate('/profile/post')}>
+                <button type="button" className="cl-back-btn" onClick={() => navigate(isEdit ? '/profile' : '/profile/post')}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
                   Back
                 </button>
-                <button type="button" className="cl-next-btn" onClick={() => navigate('/profile/post/trip/photos')}>
-                  Next: Photos &amp; Itinerary
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                <button type="button" className="cl-next-btn" onClick={handleNext} disabled={saving}>
+                  {saving ? 'Saving...' : 'Next: Photos & Itinerary'}
+                  {!saving && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="17" height="17"><path d="M5 12h14M12 5l7 7-7 7"/></svg>}
                 </button>
               </div>
               <p className="cl-footer-bar__note">
